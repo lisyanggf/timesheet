@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工時表填寫系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>多週工時表列表</h1>
+        <div class="global-actions">
+            <button id="btn-new">新建</button>
+            <button id="btn-import">匯入</button>
+        </div>
+    </header>
+    
+    <div id="last-week-container" class="last-week-container">
+        <button id="btn-last-week" class="btn-last-week">建立上週工時表</button>
+    </div>
+    
+    <main id="timesheet-cards">
+        <!-- 卡片將由JavaScript動態生成 -->
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
