@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯工時表</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>編輯工時表</h1>
+        <button id="btn-back">返回列表</button>
+    </header>
+    
+    <main id="timesheet-editor">
+        <div class="week-info">
+            <h2 id="week-title"></h2>
+            <div id="date-range"></div>
+        </div>
+        
+        <div id="entries-container">
+            <!-- 工時記錄將由JavaScript動態生成 -->
+        </div>
+        
+        <div class="editor-actions">
+            <button id="btn-add-entry">新增記錄</button>
+            <button id="btn-save">保存</button>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

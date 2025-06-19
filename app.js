@@ -1,3 +1,11 @@
+// 格式化日期為 YYYY-MM-DD（本地時間）
+function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 // 從localStorage加載所有工時表數據
 function loadAllTimesheets() {
     const data = localStorage.getItem('timesheets');
@@ -53,15 +61,17 @@ function renderTimesheetCards() {
         const startStr = dateRange.start.toISOString().split('T')[0];
         const endStr = dateRange.end.toISOString().split('T')[0];
         
-        const progress = calculateProgress(entries);
+        const totalHours = entries.reduce((sum, entry) => sum + (entry.TTL_Hours || 0), 0);
+        const isComplete = totalHours >= 40;
         
         // 創建卡片元素
         const card = document.createElement('div');
         card.className = 'timesheet-card';
         card.innerHTML = `
             <div class="card-color-bar"></div>
-            <div class="status-tag ${progress === 100 ? 'status-completed' : 'status-inprogress'}">
-                ${progress === 100 ? '✓' : '⚠'}
+            <div class="status-tag ${isComplete ? 'status-completed' : 'status-inprogress'}"
+                 title="${isComplete ? '總工時已達40小時' : '總工時未達40小時'}">
+                ${isComplete ? '✓' : '⚠'}
             </div>
             <div class="card-header">
                 <div class="week-title">${key}</div>
@@ -73,13 +83,8 @@ function renderTimesheetCards() {
                     <div class="stat-label">記錄筆數</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${entries.reduce((sum, entry) => sum + (entry.TTL_Hours || 0), 0)}</div>
+                    <div class="stat-value">${totalHours}</div>
                     <div class="stat-label">總工時</div>
-                </div>
-            </div>
-            <div class="progress-container">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${progress}%"></div>
                 </div>
             </div>
             <div class="card-actions">
@@ -139,10 +144,10 @@ function newTimesheet() {
     renderTimesheetCards();
 }
 
-// 修改工時表（暫時只跳轉到一個提示）
+// 修改工時表（跳轉到編輯頁面）
 function editTimesheet(weekKey) {
-    alert(`即將編輯 ${weekKey} 的工時表`);
-    // 待實現：跳轉到工時填寫界面
+    // 跳轉到工時填寫界面
+    window.location.href = `edit.html?week=${encodeURIComponent(weekKey)}`;
 }
 
 // 刪除工時表
@@ -174,4 +179,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // 綁定全局按鈕事件
     document.getElementById('btn-new').addEventListener('click', newTimesheet);
     document.getElementById('btn-import').addEventListener('click', importTimesheet);
+
+    // 設置上週按鈕的文字（顯示上週日期範圍）
+    const lastWeekButton = document.getElementById('btn-last-week');
+    if (lastWeekButton) {
+        updateLastWeekButtonText();
+        // 綁定點擊事件
+        lastWeekButton.addEventListener('click', createLastWeekTimesheet);
+    }
 });
+
+// 更新上週按鈕文字（顯示日期範圍）
+function updateLastWeekButtonText() {
+    const today = new Date();
+    // 更精確的計算：獲取上週一（今天減去今天星期幾再減6天）
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - today.getDay() - 6);
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    
+    const button = document.getElementById('btn-last-week');
+    if (button) {
+        button.textContent = `上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
+    }
+}
+
+// 建立上週工時表
+function createLastWeekTimesheet() {
+    const today = new Date();
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - today.getDay() - 6);
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    
+    // 生成週次格式 YYYY-Www
+    const year = lastMonday.getFullYear();
+    const weekNumber = Math.ceil((((lastMonday - new Date(year, 0, 1)) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7);
+    const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+    
+    const timesheets = loadAllTimesheets();
+    if (!timesheets[weekKey]) {
+        timesheets[weekKey] = [];
+        saveAllTimesheets(timesheets);
+    }
+    
+    // 載入上週工時表
+    editTimesheet(weekKey);
+    renderTimesheetCards();
+}
