@@ -1,3 +1,175 @@
+// 複製指定週的工時記錄到目標週
+function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
+    const timesheets = loadAllTimesheets();
+    
+    // 處理來源週資料格式
+    let sourceEntries = [];
+    const sourceWeekData = timesheets[sourceWeekKey];
+    if (Array.isArray(sourceWeekData)) {
+        sourceEntries = sourceWeekData;
+    } else if (sourceWeekData && sourceWeekData.entries) {
+        sourceEntries = sourceWeekData.entries;
+    }
+    
+    if (sourceEntries.length === 0) {
+        alert('來源週沒有工時記錄可以複製。');
+        return;
+    }
+    
+    // 檢查目標週是否已有資料
+    const targetWeekData = timesheets[targetWeekKey];
+    let targetEntries = [];
+    if (Array.isArray(targetWeekData)) {
+        targetEntries = targetWeekData;
+    } else if (targetWeekData && targetWeekData.entries) {
+        targetEntries = targetWeekData.entries;
+    }
+    
+    if (targetEntries.length > 0) {
+        const overwrite = confirm('目標週 (' + targetWeekKey + ') 已有 ' + targetEntries.length + ' 筆工時記錄。\n\n是否要覆蓋這些記錄？');
+        if (!overwrite) {
+            return;
+        }
+    }
+    
+    // 計算日期差異（以週為單位）
+    const [sourceYearStr, sourceWeekStr] = sourceWeekKey.split('-');
+    const [targetYearStr, targetWeekStr] = targetWeekKey.split('-');
+    const sourceYear = parseInt(sourceYearStr);
+    const sourceWeek = parseInt(sourceWeekStr.substring(1));
+    const targetYear = parseInt(targetYearStr);
+    const targetWeek = parseInt(targetWeekStr.substring(1));
+    
+    // 計算週數差異（簡化計算，假設同年）
+    let weekDiff = targetWeek - sourceWeek;
+    if (targetYear !== sourceYear) {
+        // 跨年計算較複雜，這裡簡化處理
+        weekDiff = (targetYear - sourceYear) * 52 + (targetWeek - sourceWeek);
+    }
+    
+    // 複製記錄並調整日期
+    const copiedEntries = sourceEntries.map(entry => {
+        const currentDate = new Date(entry.date);
+        // 調整日期
+        const targetDate = new Date(currentDate);
+        targetDate.setDate(currentDate.getDate() + (weekDiff * 7));
+        
+        return {
+            ...entry,
+            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), // 生成新的ID
+            date: targetDate.toISOString().split('T')[0] // 更新日期為目標週對應日期
+        };
+    });
+    
+    // 儲存到目標週
+    timesheets[targetWeekKey] = copiedEntries;
+    saveAllTimesheets(timesheets);
+    
+    // 重新渲染卡片
+    renderTimesheetCards();
+    
+    // 顯示成功訊息
+    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
+    const startDate = targetWeekRange.start.toISOString().split('T')[0];
+    const endDate = targetWeekRange.end.toISOString().split('T')[0];
+    showSuccessMessage(`工時記錄已成功複製到 ${targetWeekKey} (${startDate} ~ ${endDate})`);
+}
+function showCopyOptionsModal(sourceWeekKey) {
+    console.log('Inside showCopyOptionsModal function, sourceWeekKey:', sourceWeekKey);
+    // 計算當前週、上週、上上週
+    const now = new Date();
+    console.log('Current Date:', now);
+    const currentWeekNumber = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+    const currentWeekKey = currentYear + '-W' + currentWeekNumber.toString().padStart(2, '0');
+    
+    // 計算上週
+    let lastWeekNumber = currentWeekNumber - 1;
+    let lastWeekYear = currentYear;
+    if (lastWeekNumber < 1) {
+        lastWeekYear = currentYear - 1;
+        const lastDayOfPreviousYear = new Date(lastWeekYear, 11, 31);
+        lastWeekNumber = getWeekNumber(lastDayOfPreviousYear);
+    }
+    const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
+    
+    console.log('Calculated week keys: currentWeekKey=', currentWeekKey, 'lastWeekKey=', lastWeekKey);
+    
+    // 建立選項
+    const options = [
+        { key: currentWeekKey, label: '本週 (' + currentWeekKey + ')' },
+        { key: lastWeekKey, label: '上週 (' + lastWeekKey + ')' },
+        { key: 'custom', label: '自己指定週次 (YYYY-WNN)' }
+    ];
+    console.log('Initial options:', options);
+    
+    // 建立選項文字
+    let optionText = '請選擇要複製到哪一週：\n\n';
+    options.forEach((option, index) => {
+        optionText += (index + 1) + '. ' + option.label + '\n';
+    });
+    optionText += '\n請輸入選項編號 (1-' + options.length + ')：';
+    
+    const choice = prompt(optionText);
+    const choiceIndex = parseInt(choice) - 1;
+    
+    let targetWeekKey;
+    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= options.length) {
+        alert('無效的選項。');
+        return;
+    }
+    
+    if (options[choiceIndex].key === 'custom') {
+        let customWeekKey = prompt('請輸入目標週次 (格式: YYYY-WNN, 例如: 2025-W25):');
+        if (!customWeekKey) {
+            return; // 使用者取消輸入
+        }
+        customWeekKey = customWeekKey.toUpperCase();
+        const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+        if (!weekKeyPattern.test(customWeekKey)) {
+            alert('無效的週次格式。請使用 YYYY-WNN 格式。');
+            return;
+        }
+        targetWeekKey = customWeekKey;
+    } else {
+        targetWeekKey = availableOptions[choiceIndex].key;
+    }
+    
+    // 取得來源週的工時記錄數量
+    const timesheets = loadAllTimesheets();
+    let sourceEntries = [];
+    const sourceWeekData = timesheets[sourceWeekKey];
+    if (Array.isArray(sourceWeekData)) {
+        sourceEntries = sourceWeekData;
+    } else if (sourceWeekData && sourceWeekData.entries) {
+        sourceEntries = sourceWeekData.entries;
+    }
+    
+    if (sourceEntries.length === 0) {
+        alert('來源週沒有工時記錄可以複製。');
+        return;
+    }
+    
+    // 顯示確認對話框
+    const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
+    const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
+    const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
+    const targetStartDate = targetWeekRange.start.toISOString().split('T')[0];
+    const targetEndDate = targetWeekRange.end.toISOString().split('T')[0];
+    
+    const confirmMessage = `確認要複製工時記錄嗎？\n\n` +
+                          `來源週：${sourceWeekKey}\n` +
+                          `日期範圍：${sourceStartDate} ~ ${sourceEndDate}\n` +
+                          `記錄筆數：${sourceEntries.length} 筆\n\n` +
+                          `目標週：${targetWeekKey}\n` +
+                          `日期範圍：${targetStartDate} ~ ${targetEndDate}\n\n` +
+                          `所有日期將自動調整為目標週對應日期。`;
+    
+    if (confirm(confirmMessage)) {
+        copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
+    }
+}
 // 改進的 CSV 解析 function，支援引號包圍的欄位，回傳 array of objects
 function parseCSV(text) {
     console.log('[parseCSV] called');
@@ -540,6 +712,7 @@ function renderTimesheetCards() {
     document.querySelectorAll('.btn-copy').forEach(btn => {
         btn.addEventListener('click', () => {
             const weekKey = btn.getAttribute('data-week');
+console.log('Attempting to call showCopyOptionsModal with weekKey:', weekKey);
             showCopyOptionsModal(weekKey);
         });
     });
@@ -1647,158 +1820,8 @@ function renderEntriesList() {
         tbody.appendChild(row);
     });
     
-// 顯示複製選項模態框
-function showCopyOptionsModal(sourceWeekKey) {
-    // 計算當前週、上週、上上週
-    const now = new Date();
-    const currentWeekNumber = getWeekNumber(now);
-    const currentYear = now.getFullYear();
-    const currentWeekKey = currentYear + '-W' + currentWeekNumber.toString().padStart(2, '0');
-    
-    // 計算上週
-    let lastWeekNumber = currentWeekNumber - 1;
-    let lastWeekYear = currentYear;
-    if (lastWeekNumber < 1) {
-        lastWeekYear = currentYear - 1;
-        const lastDayOfPreviousYear = new Date(lastWeekYear, 11, 31);
-        lastWeekNumber = getWeekNumber(lastDayOfPreviousYear);
-    }
-    const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
-    
-    // 計算上上週
-    let twoWeeksAgoNumber = lastWeekNumber - 1;
-    let twoWeeksAgoYear = lastWeekYear;
-    if (twoWeeksAgoNumber < 1) {
-        twoWeeksAgoYear = lastWeekYear - 1;
-        const lastDayOfPreviousYear = new Date(twoWeeksAgoYear, 11, 31);
-        twoWeeksAgoNumber = getWeekNumber(lastDayOfPreviousYear);
-    }
-    const twoWeeksAgoKey = twoWeeksAgoYear + '-W' + twoWeeksAgoNumber.toString().padStart(2, '0');
-    
-    // 建立選項
-    const options = [
-        { key: currentWeekKey, label: '本週 (' + currentWeekKey + ')' },
-        { key: lastWeekKey, label: '上週 (' + lastWeekKey + ')' },
-        { key: twoWeeksAgoKey, label: '上上週 (' + twoWeeksAgoKey + ')' }
-    ];
-    
-    // 過濾掉來源週
-    const filteredOptions = options.filter(option => option.key !== sourceWeekKey);
-    
-    if (filteredOptions.length === 0) {
-        alert('沒有可用的複製目標週次。');
-        return;
-    }
-    
-    // 建立選項文字
-    let optionText = '請選擇要複製到哪一週：\n\n';
-    filteredOptions.forEach((option, index) => {
-        optionText += (index + 1) + '. ' + option.label + '\n';
-    });
-    optionText += '\n請輸入選項編號 (1-' + filteredOptions.length + ')：';
-    
-    const choice = prompt(optionText);
-    const choiceIndex = parseInt(choice) - 1;
-    
-    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= filteredOptions.length) {
-        alert('無效的選項。');
-        return;
-    }
-    
-    const targetWeekKey = filteredOptions[choiceIndex].key;
-    copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
-}
-    // 更新統計資訊
-    document.getElementById('total-entries').textContent = entries.length;
-    document.getElementById('total-hours').textContent = totalHours.toFixed(1);
-    
-    // 如果沒有記錄，顯示提示
-    if (entries.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-// 複製指定週的工時記錄到目標週
-function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
-    const timesheets = loadAllTimesheets();
-    
-    // 處理來源週資料格式
-    let sourceEntries = [];
-    const sourceWeekData = timesheets[sourceWeekKey];
-    if (Array.isArray(sourceWeekData)) {
-        sourceEntries = sourceWeekData;
-    } else if (sourceWeekData && sourceWeekData.entries) {
-        sourceEntries = sourceWeekData.entries;
-    }
-    
-    if (sourceEntries.length === 0) {
-        alert('來源週沒有工時記錄可以複製。');
-        return;
-    }
-    
-    // 檢查目標週是否已有資料
-    const targetWeekData = timesheets[targetWeekKey];
-    let targetEntries = [];
-    if (Array.isArray(targetWeekData)) {
-        targetEntries = targetWeekData;
-    } else if (targetWeekData && targetWeekData.entries) {
-        targetEntries = targetWeekData.entries;
-    }
-    
-    if (targetEntries.length > 0) {
-        const overwrite = confirm('目標週 (' + targetWeekKey + ') 已有 ' + targetEntries.length + ' 筆工時記錄。\n\n是否要覆蓋這些記錄？');
-        if (!overwrite) {
-            return;
-        }
-    }
-    
-    // 計算日期差異（以週為單位）
-    const [sourceYearStr, sourceWeekStr] = sourceWeekKey.split('-');
-    const [targetYearStr, targetWeekStr] = targetWeekKey.split('-');
-    const sourceYear = parseInt(sourceYearStr);
-    const sourceWeek = parseInt(sourceWeekStr.substring(1));
-    const targetYear = parseInt(targetYearStr);
-    const targetWeek = parseInt(targetWeekStr.substring(1));
-    
-    // 計算週數差異（簡化計算，假設同年）
-    let weekDiff = targetWeek - sourceWeek;
-    if (targetYear !== sourceYear) {
-        // 跨年計算較複雜，這裡簡化處理
-        weekDiff = (targetYear - sourceYear) * 52 + (targetWeek - sourceWeek);
-    }
-    
-    // 複製記錄並調整日期
-    const copiedEntries = sourceEntries.map(entry => {
-        const currentDate = new Date(entry.date);
-        // 調整日期
-        const targetDate = new Date(currentDate);
-        targetDate.setDate(currentDate.getDate() + (weekDiff * 7));
-        
-        return {
-            ...entry,
-            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), // 生成新的ID
-            date: targetDate.toISOString().split('T')[0] // 更新日期為目標週對應日期
-        };
-    });
-    
-    // 儲存到目標週
-    timesheets[targetWeekKey] = copiedEntries;
-    saveAllTimesheets(timesheets);
-    
-    // 重新渲染卡片
-    renderTimesheetCards();
-    
-    // 顯示成功訊息
-    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
-    const startDate = targetWeekRange.start.toISOString().split('T')[0];
-    const endDate = targetWeekRange.end.toISOString().split('T')[0];
     
     alert('成功複製 ' + copiedEntries.length + ' 筆工時記錄到目標週！\n\n來源週：' + sourceWeekKey + '\n目標週：' + targetWeekKey + '\n日期範圍：' + startDate + ' ~ ' + endDate + '\n\n所有日期已自動調整為目標週對應日期。');
-}
-            <td colspan="8" style="text-align: center; color: #7f8c8d; padding: 40px;">
-                尚無工時記錄，請點擊下方「新增記錄」按鈕開始填寫
-            </td>
-        `;
-        tbody.appendChild(row);
-    }
 }
 
 // 顯示成功訊息
