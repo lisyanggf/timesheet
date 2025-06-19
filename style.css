@@ -193,12 +193,30 @@ button:hover {
     background-color: #27ae60;
 }
 
+.btn-copy {
+    background-color: #e67e22;
+    color: white;
+}
+
+.btn-copy:hover {
+    background-color: #d35400;
+}
+
 .btn-delete {
     background-color: #e74c3c;
 }
 
 .btn-export {
     background-color: #9b59b6;
+}
+
+#btn-copy-to-previous-week {
+    background-color: #e67e22;
+    color: white;
+}
+
+#btn-copy-to-previous-week:hover {
+    background-color: #d35400;
 }
 
 /* 響應式設計 */
