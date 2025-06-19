@@ -18,13 +18,191 @@
             <div id="date-range"></div>
         </div>
         
-        <div id="entries-container">
-            <!-- 工時記錄將由JavaScript動態生成 -->
+        <!-- 基本資料設定（全 App 共用） -->
+        <div class="basic-info-container">
+            <h3>基本資料設定（全 App 共用）</h3>
+            <form id="basic-info-form">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="employeeName">員工姓名 *</label>
+                        <input type="text" id="employeeName" name="employeeName" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="employeeType">內部/外包 *</label>
+                        <select id="employeeType" name="employeeType" required>
+                            <option value="">請選擇</option>
+                            <option value="Internal">Internal</option>
+                            <option value="Outsource">Outsource</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="btn-save-basic-info">儲存基本資料</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 工時記錄表單 -->
+        <div class="form-container">
+            <h3>新增/編輯工時記錄</h3>
+            <form id="timesheet-form">
+                <!-- 任務資訊群組 -->
+                <div class="form-group">
+                    <h4>任務資訊</h4>
+                    <div class="form-row">
+                        <div class="form-field full-width">
+                            <label for="task">任務描述 *</label>
+                            <input type="text" id="task" name="task" required placeholder="請詳細描述本次工作內容">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 專案資訊群組 -->
+                <div class="form-group">
+                    <h4>專案資訊</h4>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="zone">區域 *</label>
+                            <select id="zone" name="zone" required>
+                                <option value="">請選擇區域</option>
+                                <option value="Customer Portal">Customer Portal</option>
+                                <option value="ERP">ERP</option>
+                                <option value="OA">OA</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label for="project">專案名稱</label>
+                            <select id="project" name="project">
+                                <option value="">請選擇專案</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="productModule">產品模組</label>
+                            <select id="productModule" name="productModule">
+                                <option value="">請選擇產品模組</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label for="pm">專案經理</label>
+                            <input type="text" id="pm" name="pm">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="activityType">活動類型 *</label>
+                            <select id="activityType" name="activityType" required>
+                                <option value="">請選擇活動類型</option>
+                                <option value="UI/UX Design">UI/UX Design</option>
+                                <option value="Architecture Planning">Architecture Planning</option>
+                                <option value="System Design">System Design</option>
+                                <option value="Coding">Coding</option>
+                                <option value="Testing / QA">Testing / QA</option>
+                                <option value="Deployment / Monitoring">Deployment / Monitoring</option>
+                                <option value="Troubleshooting">Troubleshooting</option>
+                                <option value="Requirement Analysis">Requirement Analysis</option>
+                                <option value="Admin / Training">Admin / Training</option>
+                                <option value="Leave">Leave</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 時間資訊群組 -->
+                <div class="form-group">
+                    <h4>時間資訊</h4>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="regularHours">正常工時 *</label>
+                            <input type="number" id="regularHours" name="regularHours" min="0" max="24" step="0.5" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="otHours">加班工時</label>
+                            <input type="number" id="otHours" name="otHours" min="0" max="24" step="0.5" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="ttlHours">總工時</label>
+                            <input type="number" id="ttlHours" name="ttlHours" min="0" max="48" step="0.5" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="date">日期 *</label>
+                            <input type="date" id="date" name="date" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="startDate">開始日期</label>
+                            <input type="date" id="startDate" name="startDate">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="endDate">結束日期</label>
+                            <input type="date" id="endDate" name="endDate">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 備註資訊群組 -->
+                <div class="form-group">
+                    <h4>備註資訊</h4>
+                    <div class="form-row">
+                        <div class="form-field full-width">
+                            <label for="comments">備註</label>
+                            <textarea id="comments" name="comments" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 表單操作按鈕 -->
+                <div class="form-actions">
+                    <button type="button" id="btn-save-entry">儲存記錄</button>
+                    <button type="button" id="btn-cancel-entry">取消</button>
+                    <button type="button" id="btn-clear-form">清空表單</button>
+                </div>
+                
+                <!-- 隱藏欄位儲存記錄 ID -->
+                <input type="hidden" id="entryId" name="entryId">
+            </form>
+        </div>
+
+        <!-- 工時記錄列表 -->
+        <div class="entries-list">
+            <div class="list-header">
+                <h3>本週工時記錄</h3>
+                <div class="list-summary">
+                    <span id="total-entries">0</span> 筆記錄，總計
+                    <span id="total-hours">0</span> 小時
+                </div>
+            </div>
+            <div class="entries-table-container">
+                <table id="entries-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>區域</th>
+                            <th>活動類型</th>
+                            <th>任務</th>
+                            <th>正常工時</th>
+                            <th>加班工時</th>
+                            <th>總工時</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="entries-tbody">
+                        <!-- 記錄將由 JavaScript 動態生成 -->
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <div class="editor-actions">
             <button id="btn-add-entry">新增記錄</button>
-            <button id="btn-save">保存</button>
+            <button id="btn-export-week">匯出本週</button>
         </div>
     </main>
 

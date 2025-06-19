@@ -216,3 +216,535 @@ button:hover {
         grid-template-columns: repeat(4, 1fr);
     }
 }
+
+/* 編輯頁面樣式 */
+#timesheet-editor {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.week-info {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.week-info h2 {
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+#date-range {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+/* 基本資料容器樣式 */
+.basic-info-container {
+    background: #e8f5e8;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #27ae60;
+}
+
+.basic-info-container h3 {
+    margin-bottom: 16px;
+    color: #27ae60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.basic-info-container h3::before {
+    content: "👤";
+    font-size: 18px;
+}
+
+.basic-info-saved {
+    background: #d4edda;
+    border-left-color: #28a745;
+}
+
+.basic-info-saved h3 {
+    color: #28a745;
+}
+
+.basic-info-saved h3::after {
+    content: " ✓";
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* 表單容器樣式 */
+.form-container {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-container h3 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+}
+
+/* 表單群組樣式 */
+.form-group {
+    margin-bottom: 24px;
+    padding: 16px;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+}
+
+.form-group h4 {
+    margin-bottom: 16px;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* 表單行樣式 */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 表單欄位樣式 */
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-field.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
+    margin-bottom: 4px;
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.form-field input[readonly] {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.form-field textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* 必填欄位標記 */
+.form-field label::after {
+    content: "";
+}
+
+.form-field label[for="name"]::after,
+.form-field label[for="task"]::after,
+.form-field label[for="internalOrOutsource"]::after,
+.form-field label[for="zone"]::after,
+.form-field label[for="activityType"]::after,
+.form-field label[for="regularHours"]::after,
+.form-field label[for="date"]::after {
+    content: " *";
+    color: #e74c3c;
+}
+
+/* 表單操作按鈕 */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #e1e4e8;
+    margin-top: 20px;
+}
+
+.form-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#btn-save-entry {
+    background-color: #27ae60;
+    color: white;
+}
+
+#btn-save-entry:hover {
+    background-color: #219a52;
+}
+
+#btn-cancel-entry {
+    background-color: #95a5a6;
+    color: white;
+}
+
+#btn-cancel-entry:hover {
+    background-color: #7f8c8d;
+}
+
+#btn-clear-form {
+    background-color: #f39c12;
+    color: white;
+}
+
+#btn-clear-form:hover {
+    background-color: #e67e22;
+}
+
+/* 工時記錄列表樣式 */
+.entries-list {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.list-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.list-summary {
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+.list-summary span {
+    font-weight: bold;
+    color: #3498db;
+}
+
+/* 表格樣式 */
+.entries-table-container {
+    overflow-x: auto;
+}
+
+#entries-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#entries-table th,
+#entries-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+#entries-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+#entries-table td {
+    font-size: 14px;
+}
+
+#entries-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* 表格操作按鈕 */
+.entry-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.entry-actions button {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.btn-edit-entry {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-edit-entry:hover {
+    background-color: #2980b9;
+}
+
+.btn-delete-entry {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-delete-entry:hover {
+    background-color: #c0392b;
+}
+
+/* 編輯器操作按鈕 */
+.editor-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.editor-actions button {
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+#btn-add-entry {
+    background-color: #27ae60;
+}
+
+#btn-add-entry:hover {
+    background-color: #219a52;
+}
+
+#btn-export-week {
+    background-color: #9b59b6;
+}
+
+#btn-export-week:hover {
+    background-color: #8e44ad;
+}
+
+/* 返回按鈕樣式 */
+#btn-back {
+    background-color: #95a5a6;
+}
+
+#btn-back:hover {
+    background-color: #7f8c8d;
+}
+
+/* 錯誤訊息樣式 */
+.error-message {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+}
+
+.form-field.error input,
+.form-field.error select,
+.form-field.error textarea {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
+}
+
+.form-field.error .error-message {
+    display: block;
+}
+
+/* 成功訊息樣式 */
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border: 1px solid #c3e6cb;
+    margin-bottom: 16px;
+    display: none;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .list-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .entries-table-container {
+        font-size: 12px;
+    }
+    
+    #entries-table th,
+    #entries-table td {
+        padding: 8px 4px;
+    }
+    
+    .editor-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-container,
+    .entries-list {
+        margin: 0 -10px;
+        border-radius: 0;
+    }
+    
+    body {
+        padding: 10px;
+    }
+}
+/* 模態框樣式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e1e4e8;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close:hover,
+.close:focus {
+    color: #e74c3c;
+}
+
+#modal-basic-info-form {
+    padding: 24px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #e1e4e8;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#btn-save-modal-basic-info {
+    background-color: #27ae60;
+    color: white;
+}
+
+#btn-save-modal-basic-info:hover {
+    background-color: #219a52;
+}
+
+#btn-cancel-modal {
+    background-color: #95a5a6;
+    color: white;
+}
+
+#btn-cancel-modal:hover {
+    background-color: #7f8c8d;
+}
+
+/* 動畫效果 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 基本資料按鈕樣式 */
+#btn-basic-info {
+    background-color: #e67e22;
+}
+
+#btn-basic-info:hover {
+    background-color: #d35400;
+}
