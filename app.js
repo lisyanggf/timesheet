@@ -277,39 +277,29 @@ function disableNormalizationMode(weekKey) {
 // 匯出時進行正規化計算
 function performNormalizationForExport(entries) {
     let totalRegularHours = 0;
-    
+
     // 計算總正常工時
     entries.forEach(entry => {
         totalRegularHours += entry.regularHours || 0;
     });
-    
+
     if (totalRegularHours > 40) {
-        const normalizedEntries = [...entries];
-        let remainingHours = 40; // 可分配的正常工時
-        
-        // 按比例調整每筆記錄的正常工時
-        normalizedEntries.forEach(entry => {
-            if (remainingHours > 0 && entry.regularHours > 0) {
-                const originalHours = entry.regularHours;
-                const allocatedHours = Math.min(remainingHours, originalHours);
-                const excessHours = originalHours - allocatedHours;
-                
-                // 保存原始工時
-                entry._originalHours = originalHours;
-                entry._isNormalized = true;
-                
-                // 調整工時
-                entry.regularHours = allocatedHours;
-                entry.otHours = (entry.otHours || 0) + excessHours;
-                entry.ttlHours = entry.regularHours + entry.otHours;
-                
-                remainingHours -= allocatedHours;
-            }
+        const normalizedEntries = entries.map(entry => {
+            const originalHours = entry.regularHours || 0;
+            const ratio = 40 / totalRegularHours;
+            const newRegularHours = Math.round(originalHours * ratio * 100) / 100;
+            // 保存原始工時
+            return {
+                ...entry,
+                _originalHours: originalHours,
+                _isNormalized: true,
+                regularHours: newRegularHours,
+                ttlHours: newRegularHours + (entry.otHours || 0)
+            };
         });
-        
         return normalizedEntries;
     }
-    
+
     return entries; // 不需要正規化
 }
 // 格式化日期為 YYYY-MM-DD（本地時間）
@@ -386,6 +376,8 @@ function renderTimesheetCards() {
         const endStr = dateRange.end.toISOString().split('T')[0];
         
         const totalHours = entries.reduce((sum, entry) => sum + (entry.ttlHours || entry.TTL_Hours || 0), 0);
+        const totalRegularHours = entries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
+        const totalOtHours = entries.reduce((sum, entry) => sum + (entry.otHours || 0), 0);
         const isComplete = totalHours >= 40;
         
         // 創建卡片元素
@@ -409,6 +401,14 @@ function renderTimesheetCards() {
                 <div class="stat-item">
                     <div class="stat-value">${totalHours}</div>
                     <div class="stat-label">總工時</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalRegularHours}</div>
+                    <div class="stat-label">總正常工時</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalOtHours}</div>
+                    <div class="stat-label">總加班工時</div>
                 </div>
             </div>
             <div class="card-actions">
@@ -442,30 +442,126 @@ function renderTimesheetCards() {
             exportTimesheet(weekKey);
         });
     });
+    
+    // 更新上週按鈕顯示狀態
+    if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
+        updateLastWeekButtonDisplay();
+    }
 }
 
-// 新建工時表
+// 新建工時表 - 顯示週次選擇模態框
 function newTimesheet() {
-    // 提示用戶輸入週次（格式：YYYY-Www）
-    const weekInput = prompt('請輸入週次（格式：YYYY-Www，例如2023-W25）:');
-    if (!weekInput) return;
-    
-    // 驗證格式
-    if (!/^\d{4}-W\d{2}$/.test(weekInput)) {
-        alert('週次格式不正確，請使用YYYY-Www格式（例如2023-W25）');
-        return;
-    }
-    
+    showWeekSelectionModal();
+}
+
+// 顯示週次選擇模態框
+function showWeekSelectionModal() {
+    const modal = document.getElementById('week-selection-modal');
     const timesheets = loadAllTimesheets();
-    if (timesheets[weekInput]) {
-        alert('該週次已存在');
-        return;
+    
+    // 計算上週和本週的週次
+    const lastWeekKey = getLastWeekKey();
+    const thisWeekKey = getThisWeekKey();
+    
+    // 更新上週選項資訊
+    const lastWeekInfo = document.getElementById('last-week-info');
+    const lastWeekStatus = document.getElementById('last-week-status');
+    const lastWeekOption = document.getElementById('option-last-week');
+    
+    if (lastWeekKey) {
+        const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
+        lastWeekInfo.textContent = `${lastWeekKey} (${formatDate(lastWeekRange.start)} - ${formatDate(lastWeekRange.end)})`;
+        
+        if (timesheets[lastWeekKey]) {
+            lastWeekStatus.textContent = '已存在';
+            lastWeekStatus.className = 'option-status status-exists';
+            // 如果已存在，禁用該選項
+            document.getElementById('radio-last-week').disabled = true;
+            lastWeekOption.style.opacity = '0.6';
+        } else {
+            lastWeekStatus.textContent = '可建立';
+            lastWeekStatus.className = 'option-status status-new';
+            document.getElementById('radio-last-week').disabled = false;
+            lastWeekOption.style.opacity = '1';
+        }
+    } else {
+        lastWeekOption.style.display = 'none';
     }
     
-    // 創建新的工時表（空數組）
-    timesheets[weekInput] = [];
-    saveAllTimesheets(timesheets);
-    renderTimesheetCards();
+    // 更新本週選項資訊
+    const thisWeekInfo = document.getElementById('this-week-info');
+    const thisWeekStatus = document.getElementById('this-week-status');
+    const thisWeekOption = document.getElementById('option-this-week');
+    
+    if (thisWeekKey) {
+        const thisWeekRange = getWeekDateRangeFromKey(thisWeekKey);
+        thisWeekInfo.textContent = `${thisWeekKey} (${formatDate(thisWeekRange.start)} - ${formatDate(thisWeekRange.end)})`;
+        
+        if (timesheets[thisWeekKey]) {
+            thisWeekStatus.textContent = '已存在';
+            thisWeekStatus.className = 'option-status status-exists';
+            // 如果已存在，禁用該選項
+            document.getElementById('radio-this-week').disabled = true;
+            thisWeekOption.style.opacity = '0.6';
+        } else {
+            thisWeekStatus.textContent = '可建立';
+            thisWeekStatus.className = 'option-status status-new';
+            document.getElementById('radio-this-week').disabled = false;
+            thisWeekOption.style.opacity = '1';
+        }
+    } else {
+        thisWeekOption.style.display = 'none';
+    }
+    
+    // 重置自訂輸入
+    document.getElementById('custom-week-field').value = '';
+    document.getElementById('custom-week-input').style.display = 'none';
+    
+    // 清除選擇
+    document.querySelectorAll('input[name="weekOption"]').forEach(radio => {
+        radio.checked = false;
+    });
+    
+    // 顯示模態框
+    modal.style.display = 'block';
+}
+
+// 取得上週的週次鍵值
+function getLastWeekKey() {
+    const today = new Date();
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - today.getDay() - 6);
+    
+    const year = lastMonday.getFullYear();
+    const weekNumber = getWeekNumber(lastMonday);
+    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+}
+
+// 取得本週的週次鍵值
+function getThisWeekKey() {
+    const today = new Date();
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - today.getDay() + 1);
+    
+    const year = thisMonday.getFullYear();
+    const weekNumber = getWeekNumber(thisMonday);
+    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+}
+
+// 計算週數（ISO 8601）
+function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// 從週次鍵值取得日期範圍
+function getWeekDateRangeFromKey(weekKey) {
+    const [year, week] = weekKey.split('-');
+    const weekNumber = parseInt(week.substring(1));
+    return getWeekDateRange(weekNumber, year);
 }
 
 // 修改工時表（跳轉到編輯頁面）
@@ -484,10 +580,150 @@ function deleteTimesheet(weekKey) {
     }
 }
 
-// 匯出工時表（暫時只提示）
+// 匯出工時表為CSV檔案
 function exportTimesheet(weekKey) {
-    alert(`即將匯出 ${weekKey} 的工時表`);
-    // 待實現：導出Excel/CSV
+    try {
+        const entries = getWeekEntries(weekKey);
+        if (!entries || entries.length === 0) {
+            alert('該週次沒有工時記錄可匯出');
+            return;
+        }
+
+        // 匯出前檢查總正常工時，若超過40小時則提示
+        const totalRegularHours = entries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
+        // 若超過40小時，提示將自動正規化
+        if (totalRegularHours > 40) {
+            alert('本週正常工時超過40小時，滙出時將自動進行正規化計算。\n\n注意：若下載檔案時選擇覆蓋舊檔，且舊檔正在開啟狀態，下載可能會失敗並顯示「需要下載權限」等錯誤，請先關閉舊檔再下載。');
+        }
+
+        let exportEntries = [...entries];
+
+        if (totalRegularHours > 40) {
+            exportEntries = performNormalizationForExport(exportEntries);
+        }
+
+        // 準備CSV內容
+        const csvContent = generateCSVContent(exportEntries, weekKey);
+
+        // 創建並下載檔案
+        downloadCSVFile(csvContent, `工時表_${weekKey}.csv`);
+
+        // 顯示成功訊息
+        showSuccessMessage(`${weekKey} 工時表已匯出`);
+
+    } catch (error) {
+        console.error('匯出失敗:', error);
+        alert('匯出失敗，請檢查瀏覽器控制台');
+    }
+}
+// 滙出未經正規化的原始工時
+function exportRawTimesheet(weekKey) {
+    try {
+        const entries = getWeekEntries(weekKey);
+        if (!entries || entries.length === 0) {
+            alert('該週次沒有工時記錄可匯出');
+            return;
+        }
+        // 直接滙出原始工時資料
+        const csvContent = generateCSVContent(entries, weekKey);
+        downloadCSVFile(csvContent, `工時表_${weekKey}_原始.csv`);
+        showSuccessMessage(`${weekKey} 工時表（原始）已匯出`);
+    } catch (error) {
+        console.error('原始工時匯出失敗:', error);
+        alert('原始工時匯出失敗，請檢查瀏覽器控制台');
+    }
+}
+
+// 生成CSV內容
+function generateCSVContent(entries, weekKey) {
+    // CSV標題行（按照指定格式）
+    const headers = [
+        'Name',
+        'Zone',
+        'Project',
+        'Product Module',
+        'Activity Type',
+        'Task',
+        'Regular Hours',
+        'OT Hours',
+        'TTL_Hours',
+        'Date',
+        'Start Date',
+        'End Date',
+        'Comments',
+        'PM',
+        'InternalOrOutsource'
+    ];
+
+    // 載入基本資料
+    const basicInfo = loadGlobalBasicInfo();
+    
+    // 轉換資料行
+    const dataRows = entries.map(entry => {
+        const regularHours = parseFloat(entry.regularHours) || 0;
+        const overtimeHours = parseFloat(entry.overtimeHours) || parseFloat(entry.otHours) || 0;
+        const totalHours = parseFloat(entry.ttlHours) || (regularHours + overtimeHours);
+        
+        return [
+            basicInfo.employeeName || '',           // Name
+            entry.zone || '',                       // Zone
+            entry.project || '',                    // Project
+            entry.productModule || '',              // Product Module
+            entry.activityType || '',               // Activity Type
+            entry.task || '',                       // Task
+            regularHours,                           // Regular Hours
+            overtimeHours,                          // OT Hours
+            totalHours,                             // TTL_Hours
+            entry.date || '',                       // Date
+            entry.startDate || '',                  // Start Date
+            entry.endDate || '',                    // End Date
+            entry.comments || '',                   // Comments
+            entry.pm || '',                         // PM
+            basicInfo.employeeType || ''            // InternalOrOutsource
+        ];
+    });
+
+    // 組合CSV內容
+    const csvRows = [headers, ...dataRows];
+    
+    // 轉換為CSV格式字串
+    return csvRows.map(row =>
+        row.map(field => {
+            // 處理包含逗號或換行的欄位
+            const fieldStr = String(field);
+            if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
+                return '"' + fieldStr.replace(/"/g, '""') + '"';
+            }
+            return fieldStr;
+        }).join(',')
+    ).join('\n');
+}
+
+// 下載CSV檔案
+function downloadCSVFile(csvContent, filename) {
+    try {
+        console.log('[downloadCSVFile] 開始下載', { filename, csvContentSample: csvContent.slice(0, 100) });
+        // 添加BOM以支援中文
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        console.log('[downloadCSVFile] Blob created', blob);
+        const url = URL.createObjectURL(blob);
+        console.log('[downloadCSVFile] Object URL', url);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        // 添加到頁面並觸發下載
+        document.body.appendChild(link);
+        link.click();
+        console.log('[downloadCSVFile] link.click() 已觸發');
+        // 清理
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('[downloadCSVFile] 清理完成');
+    } catch (err) {
+        console.error('[downloadCSVFile] 發生錯誤', err);
+    }
 }
 
 // 匯入工時表（暫時只提示）
@@ -552,31 +788,67 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-new').addEventListener('click', newTimesheet);
         document.getElementById('btn-import').addEventListener('click', importTimesheet);
         
-        // 綁定模態框事件
+        // 綁定基本資料模態框事件
         document.getElementById('btn-save-modal-basic-info').addEventListener('click', saveModalBasicInfo);
         document.getElementById('btn-cancel-modal').addEventListener('click', hideBasicInfoModal);
         document.querySelector('.close').addEventListener('click', hideBasicInfoModal);
         
+        // 綁定週次選擇模態框事件
+        const weekModal = document.getElementById('week-selection-modal');
+        if (weekModal) {
+            const weekCloseBtn = weekModal.querySelector('.close');
+            const confirmWeekBtn = document.getElementById('btn-confirm-week');
+            const cancelWeekBtn = document.getElementById('btn-cancel-week');
+            const customRadio = document.getElementById('radio-custom');
+            const customInput = document.getElementById('custom-week-input');
+            
+            if (weekCloseBtn) weekCloseBtn.addEventListener('click', hideWeekSelectionModal);
+            if (cancelWeekBtn) cancelWeekBtn.addEventListener('click', hideWeekSelectionModal);
+            if (confirmWeekBtn) confirmWeekBtn.addEventListener('click', confirmWeekSelection);
+            
+            // 監聽自訂選項的選擇
+            if (customRadio && customInput) {
+                customRadio.addEventListener('change', function() {
+                    if (this.checked) {
+                        customInput.style.display = 'block';
+                    }
+                });
+            }
+            
+            // 監聽其他選項的選擇（隱藏自訂輸入）
+            document.querySelectorAll('input[name="weekOption"]:not(#radio-custom)').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.checked && customInput) {
+                        customInput.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
         // 點擊模態框外部關閉
         window.addEventListener('click', (event) => {
-            const modal = document.getElementById('basic-info-modal');
-            if (event.target === modal) {
+            const basicModal = document.getElementById('basic-info-modal');
+            const weekSelectionModal = document.getElementById('week-selection-modal');
+            
+            if (event.target === basicModal) {
                 hideBasicInfoModal();
+            } else if (event.target === weekSelectionModal) {
+                hideWeekSelectionModal();
             }
         });
 
-        // 設置上週按鈕的文字（顯示上週日期範圍）
+        // 設置上週按鈕的文字和顯示狀態
         const lastWeekButton = document.getElementById('btn-last-week');
         if (lastWeekButton) {
-            updateLastWeekButtonText();
+            updateLastWeekButtonDisplay();
             // 綁定點擊事件
             lastWeekButton.addEventListener('click', createLastWeekTimesheet);
         }
     }
 });
 
-// 更新上週按鈕文字（顯示日期範圍）
-function updateLastWeekButtonText() {
+// 更新上週按鈕顯示狀態和文字
+function updateLastWeekButtonDisplay() {
     const today = new Date();
     // 更精確的計算：獲取上週一（今天減去今天星期幾再減6天）
     const lastMonday = new Date(today);
@@ -585,8 +857,21 @@ function updateLastWeekButtonText() {
     lastSunday.setDate(lastMonday.getDate() + 6);
     
     const button = document.getElementById('btn-last-week');
-    if (button) {
-        button.textContent = `上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
+    const container = document.getElementById('last-week-container');
+    
+    if (button && container) {
+        // 檢查上週是否已存在
+        const lastWeekKey = getLastWeekKey();
+        const timesheets = loadAllTimesheets();
+        
+        if (timesheets[lastWeekKey]) {
+            // 上週已存在，隱藏按鈕
+            container.style.display = 'none';
+        } else {
+            // 上週不存在，顯示按鈕並設置文字
+            container.style.display = 'block';
+            button.textContent = `建立上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
+        }
     }
 }
 
@@ -744,7 +1029,7 @@ function validateForm() {
         isValid = false;
     }
     
-    // 驗證該週正常工時總計不得超過40小時
+    // 允許正常工時總計超過40小時，僅於匯出時提示正規化
     const weekKey = getCurrentWeekKey();
     const currentEntryId = document.getElementById('entryId').value;
     const entries = getWeekEntries(weekKey);
@@ -760,25 +1045,7 @@ function validateForm() {
     // 加上當前輸入的正常工時
     totalRegularHours += regularHours;
     
-    if (totalRegularHours > 40) {
-        const shouldNormalize = confirm(
-            `該週正常工時總計 ${totalRegularHours} 小時，超過 40 小時限制。\n\n` +
-            `是否開啟正規化模式？\n` +
-            `- 確定：自動調整為40小時正常工時，超出部分轉為加班工時\n` +
-            `- 取消：保持原有設定但無法儲存`
-        );
-        
-        if (shouldNormalize) {
-            // 啟用正規化模式 - 只標記狀態，不立即調整工時
-            enableNormalizationMode(weekKey);
-            showSuccessMessage('正規化模式已啟用，匯出時將自動進行正規化計算');
-        } else {
-            const formField = document.getElementById('regularHours').closest('.form-field');
-            formField.classList.add('error');
-            showFieldError(formField, `該週正常工時總計 ${totalRegularHours} 小時，不得超過 40 小時`);
-            isValid = false;
-        }
-    }
+    // 不再於此處限制或提示，僅於匯出時處理正規化
     
     // 驗證日期邏輯
     const startDate = document.getElementById('startDate').value;
@@ -995,19 +1262,33 @@ function copyEntry(entryId) {
     const entry = entries.find(e => e.id === entryId);
     
     if (entry) {
-        // 複製記錄資料但清除 ID 和日期相關欄位
-        const copiedEntry = {
-            ...entry,
-            id: '', // 清空 ID，儲存時會產生新的
-            date: '', // 清空日期，讓使用者重新選擇
-            startDate: '', // 清空開始日期
-            endDate: '' // 清空結束日期
-        };
+        // 獲取當週日期範圍
+        const [year, week] = weekKey.split('-');
+        const weekNumber = parseInt(week.substring(1));
+        const weekRange = getWeekDateRange(weekNumber, year);
+        
+        // 複製記錄資料並更新日期
+        const copiedEntry = { ...entry, id: generateUniqueId() };
+        
+        // 更新日期（如果是單日記錄）
+        if (copiedEntry.date) {
+            const originalDate = new Date(copiedEntry.date);
+            const nextDate = new Date(originalDate);
+            nextDate.setDate(originalDate.getDate() + 1);
+            
+            // 檢查是否超過週範圍
+            if (nextDate <= weekRange.end) {
+                copiedEntry.date = formatDate(nextDate);
+            } else {
+                // 如果是週最後一天，則重置為週第一天
+                copiedEntry.date = formatDate(weekRange.start);
+            }
+        }
         
         fillForm(copiedEntry);
         // 滾動到表單頂部
         document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
-        showSuccessMessage('工時記錄已複製，請修改日期後儲存');
+        showSuccessMessage('工時記錄已複製，日期已自動調整');
     }
 }
 
@@ -1113,15 +1394,25 @@ async function initEditPage() {
     const [year, week] = weekKey.split('-');
     const weekNumber = parseInt(week.substring(1));
     const dateRange = getWeekDateRange(weekNumber, year);
-    document.getElementById('date-range').textContent =
-        `${formatDate(dateRange.start)} 至 ${formatDate(dateRange.end)}`;
-    
+    const entries = getWeekEntries(weekKey) || [];
+    const totalRegularHours = entries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
+    const totalOtHours = entries.reduce((sum, entry) => sum + (entry.otHours || 0), 0);
+    const totalHours = entries.reduce((sum, entry) => sum + (entry.ttlHours || entry.TTL_Hours || 0), 0);
+
+    // 將統計資訊加在日期區塊同一行
+    const dateRangeDiv = document.getElementById('date-range');
+    dateRangeDiv.innerHTML =
+        `${formatDate(dateRange.start)} 至 ${formatDate(dateRange.end)}
+        <span style="color:#444;font-size:1em;">
+        總正常工時：${totalRegularHours}
+        總加班工時：${totalOtHours}
+        總工時：${totalHours}
+        </span>`;
     // 設置日期欄位的限制範圍
     setDateFieldLimits(dateRange.start, dateRange.end);
     
-    // 檢查並顯示正規化模式狀態
-    updateNormalizationModeDisplay(weekKey);
-    
+    // (已移除正規化模式狀態顯示)
+ 
     // 載入並顯示全域基本資料
     const basicInfo = loadGlobalBasicInfo();
     if (basicInfo) {
@@ -1157,4 +1448,96 @@ async function initEditPage() {
 // 檢查是否為編輯頁面並初始化
 if (window.location.pathname.includes('edit.html')) {
     document.addEventListener('DOMContentLoaded', initEditPage);
+}
+// 隱藏週次選擇模態框
+function hideWeekSelectionModal() {
+    const modal = document.getElementById('week-selection-modal');
+    modal.style.display = 'none';
+}
+
+// 確認週次選擇並建立工時表
+function confirmWeekSelection() {
+    const selectedOption = document.querySelector('input[name="weekOption"]:checked');
+    
+    if (!selectedOption) {
+        alert('請選擇一個週次選項');
+        return;
+    }
+    
+    let weekKey = '';
+    
+    switch (selectedOption.value) {
+        case 'last':
+            weekKey = getLastWeekKey();
+            break;
+        case 'this':
+            weekKey = getThisWeekKey();
+            break;
+        case 'custom':
+            const customWeek = document.getElementById('custom-week-field').value.trim();
+            if (!customWeek) {
+                alert('請輸入自訂週次');
+                return;
+            }
+            
+            // 驗證格式
+            if (!/^\d{4}-W\d{2}$/.test(customWeek)) {
+                alert('週次格式不正確，請使用YYYY-Www格式（例如2024-W25）');
+                return;
+            }
+            
+            weekKey = customWeek;
+            break;
+        default:
+            alert('無效的選項');
+            return;
+    }
+    
+    if (!weekKey) {
+        alert('無法取得週次資訊');
+        return;
+    }
+    
+    // 檢查是否已存在
+    const timesheets = loadAllTimesheets();
+    if (timesheets[weekKey]) {
+        alert(`週次 ${weekKey} 已存在`);
+        return;
+    }
+    
+    // 創建新的工時表
+    timesheets[weekKey] = [];
+    saveAllTimesheets(timesheets);
+    
+    // 隱藏模態框
+    hideWeekSelectionModal();
+    
+    // 重新渲染卡片
+    renderTimesheetCards();
+    
+    // 顯示成功訊息
+    showSuccessMessage(`成功建立週次 ${weekKey} 的工時表`);
+}
+
+// 顯示成功訊息
+function showSuccessMessage(message) {
+    // 創建成功訊息元素
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.innerHTML = `
+        <div class="success-content">
+            <span class="success-icon">✓</span>
+            <span class="success-text">${message}</span>
+        </div>
+    `;
+    
+    // 添加到頁面
+    document.body.appendChild(successDiv);
+    
+    // 3秒後自動移除
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.parentNode.removeChild(successDiv);
+        }
+    }, 3000);
 }

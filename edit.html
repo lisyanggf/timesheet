@@ -211,5 +211,86 @@
     </main>
 
     <script src="app.js"></script>
+<script>
+async function fetchCSV(path) {
+    const res = await fetch(path);
+    const text = await res.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+        const cols = line.split(',').map(c => c.trim());
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = cols[i]);
+        return obj;
+    });
+}
+
+// 初始化專案名稱與產品模組下拉選單
+async function initProjectAndProductSelect(projectValue, productValue) {
+    // 專案名稱
+    const projectList = await fetchCSV('projectcode.csv');
+    const projectSelect = document.getElementById('project');
+    if (projectSelect) {
+        projectSelect.innerHTML = '<option value="">請選擇專案</option>' +
+            projectList.map(p => `<option value="${p.Project}">${p.Project}</option>`).join('');
+        if (projectValue) projectSelect.value = projectValue;
+    }
+    // 產品模組
+    const productList = await fetchCSV('productcode.csv');
+    const productSelect = document.getElementById('productModule');
+    if (productSelect) {
+        productSelect.innerHTML = '<option value="">請選擇產品模組</option>' +
+            productList.map(p => `<option value="${p['Product Module']}">${p['Product Module']}</option>`).join('');
+        if (productValue) productSelect.value = productValue;
+    }
+}
+
+// 假設 entry 資料來自 localStorage 或其他來源
+function getEditingEntry() {
+    // 範例：從 localStorage 取得目前正在編輯的 entry
+    // 請根據實際資料結構調整
+    const params = new URLSearchParams(window.location.search);
+    const weekKey = params.get('week');
+    const entryId = document.getElementById('entryId')?.value;
+    if (!weekKey || !entryId) return null;
+    const timesheets = JSON.parse(localStorage.getItem('timesheets') || '{}');
+    const entries = timesheets[weekKey] || [];
+    return entries.find(e => e.id == entryId);
+}
+// 綁定「匯出本週」按鈕事件
+document.addEventListener('DOMContentLoaded', function () {
+    const btnExport = document.getElementById('btn-export-week');
+    if (btnExport) {
+        btnExport.addEventListener('click', function () {
+            // 下載提示
+            alert('提醒：無論有無超時，請注意下載狀態。若舊檔為開啟狀態，下戴會失敗，瀏覽器將顯示「需要下載權限」錯誤訊息。');
+            // 取得當前週次
+            const params = new URLSearchParams(window.location.search);
+            const weekKey = params.get('week');
+            if (weekKey) {
+                if (typeof exportTimesheet === 'function') {
+                    exportTimesheet(weekKey);
+                } else if (window.exportTimesheet) {
+                    window.exportTimesheet(weekKey);
+                } else {
+                    alert('找不到匯出功能，請確認 app.js 已正確載入');
+                }
+            } else {
+                alert('無法取得週次資訊');
+            }
+        });
+    }
+});
+
+window.addEventListener('DOMContentLoaded', async () => {
+    // 嘗試取得正在編輯的 entry
+    const entry = getEditingEntry();
+    if (entry) {
+        await initProjectAndProductSelect(entry.project, entry.productModule);
+    } else {
+        await initProjectAndProductSelect();
+    }
+});
+</script>
 </body>
 </html>

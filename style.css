@@ -109,6 +109,15 @@ button:hover {
 /* 卡片內容 */
 .card-header {
     margin-bottom: 12px;
+.week-summary {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    font-size: 0.95em;
+    color: #444;
+    display: flex;
+    gap: 1.5em;
+    flex-wrap: wrap;
+}
     padding-left: 10px;
 }
 
@@ -792,4 +801,179 @@ button:hover {
 
 #btn-basic-info:hover {
     background-color: #d35400;
+}
+/* 週次選擇模態框樣式 */
+.week-options {
+    padding: 24px;
+}
+
+.week-option {
+    margin-bottom: 16px;
+    border: 2px solid #e1e4e8;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.week-option:hover {
+    border-color: #3498db;
+    background-color: #f8f9fa;
+}
+
+.week-option input[type="radio"] {
+    display: none;
+}
+
+.week-option input[type="radio"]:checked + label {
+    background-color: #e3f2fd;
+    border-color: #3498db;
+}
+
+.week-option label {
+    display: block;
+    padding: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.option-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.option-subtitle {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+}
+
+.option-status {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.status-exists {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-new {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.custom-input {
+    padding: 16px 24px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e1e4e8;
+}
+
+.custom-input label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.custom-input input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.custom-input input[type="text"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.format-hint {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+#btn-confirm-week {
+    background-color: #27ae60;
+    color: white;
+}
+
+#btn-confirm-week:hover {
+    background-color: #219a52;
+}
+
+#btn-confirm-week:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#btn-cancel-week {
+    background-color: #95a5a6;
+    color: white;
+}
+
+#btn-cancel-week:hover {
+    background-color: #7f8c8d;
+}
+/* 成功訊息樣式 */
+.success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.success-content {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 300px;
+}
+
+.success-icon {
+    background-color: #28a745;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.success-text {
+    font-weight: 500;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

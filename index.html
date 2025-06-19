@@ -46,6 +46,50 @@
         </div>
     </div>
     
+    <!-- 週次選擇模態框 -->
+    <div id="week-selection-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>選擇要建立的週次</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="week-options">
+                <div class="week-option" id="option-last-week">
+                    <input type="radio" name="weekOption" value="last" id="radio-last-week">
+                    <label for="radio-last-week">
+                        <div class="option-title">上週</div>
+                        <div class="option-subtitle" id="last-week-info">載入中...</div>
+                        <div class="option-status" id="last-week-status"></div>
+                    </label>
+                </div>
+                <div class="week-option" id="option-this-week">
+                    <input type="radio" name="weekOption" value="this" id="radio-this-week">
+                    <label for="radio-this-week">
+                        <div class="option-title">本週</div>
+                        <div class="option-subtitle" id="this-week-info">載入中...</div>
+                        <div class="option-status" id="this-week-status"></div>
+                    </label>
+                </div>
+                <div class="week-option" id="option-custom">
+                    <input type="radio" name="weekOption" value="custom" id="radio-custom">
+                    <label for="radio-custom">
+                        <div class="option-title">自訂週次</div>
+                        <div class="option-subtitle">手動輸入週次格式</div>
+                    </label>
+                </div>
+            </div>
+            <div id="custom-week-input" class="custom-input" style="display: none;">
+                <label for="custom-week-field">週次格式（YYYY-Www）：</label>
+                <input type="text" id="custom-week-field" placeholder="例如：2024-W25">
+                <div class="format-hint">格式說明：年份-W週數（例如：2024-W01 到 2024-W53）</div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="btn-confirm-week">確認建立</button>
+                <button type="button" id="btn-cancel-week">取消</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="last-week-container" class="last-week-container">
         <button id="btn-last-week" class="btn-last-week">建立上週工時表</button>
     </div>
