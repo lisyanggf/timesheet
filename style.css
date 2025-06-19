@@ -279,6 +279,41 @@ button:hover {
     font-weight: bold;
 }
 
+/* 正規化模式提示樣式 */
+.normalization-alert {
+    margin-top: 16px;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+.btn-disable-normalization {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 12px;
+}
+
+.btn-disable-normalization:hover {
+    background-color: #5a6268;
+}
+
 /* 表單容器樣式 */
 .form-container {
     background: white;
@@ -377,6 +412,7 @@ button:hover {
 .form-field label[for="task"]::after,
 .form-field label[for="internalOrOutsource"]::after,
 .form-field label[for="zone"]::after,
+.form-field label[for="project"]::after,
 .form-field label[for="activityType"]::after,
 .form-field label[for="regularHours"]::after,
 .form-field label[for="date"]::after {
@@ -517,6 +553,15 @@ button:hover {
 
 .btn-edit-entry:hover {
     background-color: #2980b9;
+}
+
+.btn-copy-entry {
+    background-color: #f39c12;
+    color: white;
+}
+
+.btn-copy-entry:hover {
+    background-color: #e67e22;
 }
 
 .btn-delete-entry {

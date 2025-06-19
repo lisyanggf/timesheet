@@ -189,6 +189,129 @@ function updateActivityTypeOptions() {
         }
     });
 }
+
+// 設置日期欄位的限制範圍
+function setDateFieldLimits(startDate, endDate) {
+    const minDate = formatDate(startDate);
+    const maxDate = formatDate(endDate);
+    
+    // 設置日期欄位的 min 和 max 屬性
+    const dateFields = ['date', 'startDate', 'endDate'];
+    dateFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.min = minDate;
+            field.max = maxDate;
+            
+            // 如果欄位有值但超出範圍，則清空
+            if (field.value) {
+                const fieldDate = new Date(field.value);
+                if (fieldDate < startDate || fieldDate > endDate) {
+                    field.value = '';
+                }
+            }
+        }
+    });
+}
+
+// 驗證日期是否在週範圍內
+function validateDateInWeekRange(date, startDate, endDate) {
+    if (!date) return true; // 空值允許
+    
+    const inputDate = new Date(date);
+    return inputDate >= startDate && inputDate <= endDate;
+}
+
+// 啟用正規化模式
+function enableNormalizationMode(weekKey) {
+    // 儲存正規化狀態到 localStorage
+    const normalizationData = {
+        weekKey: weekKey,
+        enabled: true,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem(`normalization_${weekKey}`, JSON.stringify(normalizationData));
+    
+    // 更新 UI 顯示正規化模式狀態
+    updateNormalizationModeDisplay(weekKey);
+}
+
+// 檢查是否啟用正規化模式
+function isNormalizationEnabled(weekKey) {
+    const data = localStorage.getItem(`normalization_${weekKey}`);
+    return data ? JSON.parse(data).enabled : false;
+}
+
+// 更新正規化模式顯示
+function updateNormalizationModeDisplay(weekKey) {
+    const isEnabled = isNormalizationEnabled(weekKey);
+    const weekInfoDiv = document.querySelector('.week-info');
+    
+    // 移除舊的正規化提示
+    const existingAlert = weekInfoDiv.querySelector('.normalization-alert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+    
+    if (isEnabled) {
+        // 顯示正規化模式提示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'normalization-alert';
+        alertDiv.innerHTML = `
+            <div class="alert alert-info">
+                <strong>📊 正規化模式已啟用</strong> - 該週工時超過40小時，匯出時將自動進行正規化計算
+                <button onclick="disableNormalizationMode('${weekKey}')" class="btn-disable-normalization">停用</button>
+            </div>
+        `;
+        weekInfoDiv.appendChild(alertDiv);
+    }
+}
+
+// 停用正規化模式
+function disableNormalizationMode(weekKey) {
+    localStorage.removeItem(`normalization_${weekKey}`);
+    updateNormalizationModeDisplay(weekKey);
+    showSuccessMessage('正規化模式已停用');
+}
+
+// 匯出時進行正規化計算
+function performNormalizationForExport(entries) {
+    let totalRegularHours = 0;
+    
+    // 計算總正常工時
+    entries.forEach(entry => {
+        totalRegularHours += entry.regularHours || 0;
+    });
+    
+    if (totalRegularHours > 40) {
+        const normalizedEntries = [...entries];
+        let remainingHours = 40; // 可分配的正常工時
+        
+        // 按比例調整每筆記錄的正常工時
+        normalizedEntries.forEach(entry => {
+            if (remainingHours > 0 && entry.regularHours > 0) {
+                const originalHours = entry.regularHours;
+                const allocatedHours = Math.min(remainingHours, originalHours);
+                const excessHours = originalHours - allocatedHours;
+                
+                // 保存原始工時
+                entry._originalHours = originalHours;
+                entry._isNormalized = true;
+                
+                // 調整工時
+                entry.regularHours = allocatedHours;
+                entry.otHours = (entry.otHours || 0) + excessHours;
+                entry.ttlHours = entry.regularHours + entry.otHours;
+                
+                remainingHours -= allocatedHours;
+            }
+        });
+        
+        return normalizedEntries;
+    }
+    
+    return entries; // 不需要正規化
+}
 // 格式化日期為 YYYY-MM-DD（本地時間）
 function formatDate(date) {
     const y = date.getFullYear();
@@ -576,7 +699,7 @@ function validateBasicInfo() {
 
 // 驗證工時記錄表單
 function validateForm() {
-    const requiredFields = ['task', 'zone', 'activityType', 'regularHours', 'date'];
+    const requiredFields = ['task', 'zone', 'project', 'activityType', 'regularHours', 'date'];
     let isValid = true;
     
     // 檢查是否已儲存全域基本資料
@@ -621,10 +744,77 @@ function validateForm() {
         isValid = false;
     }
     
+    // 驗證該週正常工時總計不得超過40小時
+    const weekKey = getCurrentWeekKey();
+    const currentEntryId = document.getElementById('entryId').value;
+    const entries = getWeekEntries(weekKey);
+    
+    // 計算除了當前編輯記錄外的其他記錄的正常工時總和
+    let totalRegularHours = 0;
+    entries.forEach(entry => {
+        if (entry.id !== currentEntryId) {
+            totalRegularHours += entry.regularHours || 0;
+        }
+    });
+    
+    // 加上當前輸入的正常工時
+    totalRegularHours += regularHours;
+    
+    if (totalRegularHours > 40) {
+        const shouldNormalize = confirm(
+            `該週正常工時總計 ${totalRegularHours} 小時，超過 40 小時限制。\n\n` +
+            `是否開啟正規化模式？\n` +
+            `- 確定：自動調整為40小時正常工時，超出部分轉為加班工時\n` +
+            `- 取消：保持原有設定但無法儲存`
+        );
+        
+        if (shouldNormalize) {
+            // 啟用正規化模式 - 只標記狀態，不立即調整工時
+            enableNormalizationMode(weekKey);
+            showSuccessMessage('正規化模式已啟用，匯出時將自動進行正規化計算');
+        } else {
+            const formField = document.getElementById('regularHours').closest('.form-field');
+            formField.classList.add('error');
+            showFieldError(formField, `該週正常工時總計 ${totalRegularHours} 小時，不得超過 40 小時`);
+            isValid = false;
+        }
+    }
+    
     // 驗證日期邏輯
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
+    const date = document.getElementById('date').value;
     
+    // 獲取當前週的日期範圍（使用已宣告的 weekKey）
+    const [year, week] = weekKey.split('-');
+    const weekNumber = parseInt(week.substring(1));
+    const weekRange = getWeekDateRange(weekNumber, year);
+    
+    // 驗證主要日期是否在週範圍內
+    if (date && !validateDateInWeekRange(date, weekRange.start, weekRange.end)) {
+        const formField = document.getElementById('date').closest('.form-field');
+        formField.classList.add('error');
+        showFieldError(formField, `日期必須在 ${formatDate(weekRange.start)} 至 ${formatDate(weekRange.end)} 範圍內`);
+        isValid = false;
+    }
+    
+    // 驗證開始日期是否在週範圍內
+    if (startDate && !validateDateInWeekRange(startDate, weekRange.start, weekRange.end)) {
+        const formField = document.getElementById('startDate').closest('.form-field');
+        formField.classList.add('error');
+        showFieldError(formField, `開始日期必須在 ${formatDate(weekRange.start)} 至 ${formatDate(weekRange.end)} 範圍內`);
+        isValid = false;
+    }
+    
+    // 驗證結束日期是否在週範圍內
+    if (endDate && !validateDateInWeekRange(endDate, weekRange.start, weekRange.end)) {
+        const formField = document.getElementById('endDate').closest('.form-field');
+        formField.classList.add('error');
+        showFieldError(formField, `結束日期必須在 ${formatDate(weekRange.start)} 至 ${formatDate(weekRange.end)} 範圍內`);
+        isValid = false;
+    }
+    
+    // 驗證開始日期不能晚於結束日期
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
         const formField = document.getElementById('endDate').closest('.form-field');
         formField.classList.add('error');
@@ -677,8 +867,9 @@ function fillBasicInfo(basicInfo) {
 // 從表單獲取工時記錄數據
 function getFormData() {
     const basicInfo = loadGlobalBasicInfo();
+    const originalHours = document.getElementById('originalHours').value;
     
-    return {
+    const data = {
         id: document.getElementById('entryId').value || generateUniqueId(),
         // 從全域基本資料引用
         name: basicInfo ? basicInfo.employeeName : '',
@@ -698,6 +889,14 @@ function getFormData() {
         comments: document.getElementById('comments').value.trim(),
         pm: document.getElementById('pm').value.trim()
     };
+    
+    // 如果有原始工時（正規化模式），則儲存但標記為內部使用
+    if (originalHours && parseFloat(originalHours) > 0) {
+        data._originalHours = parseFloat(originalHours); // 使用 _ 前綴標記為內部欄位
+        data._isNormalized = true;
+    }
+    
+    return data;
 }
 
 // 填充工時記錄表單數據
@@ -716,6 +915,16 @@ function fillForm(entry) {
     document.getElementById('endDate').value = entry.endDate || '';
     document.getElementById('comments').value = entry.comments || '';
     document.getElementById('pm').value = entry.pm || '';
+    
+    // 處理原始工時欄位（正規化模式）
+    const originalHoursField = document.getElementById('originalHoursField');
+    if (entry._originalHours && entry._isNormalized) {
+        document.getElementById('originalHours').value = entry._originalHours;
+        originalHoursField.style.display = 'block';
+    } else {
+        document.getElementById('originalHours').value = '';
+        originalHoursField.style.display = 'none';
+    }
 }
 
 // 儲存基本資料
@@ -779,6 +988,29 @@ function editEntry(entryId) {
     }
 }
 
+// 複製工時記錄
+function copyEntry(entryId) {
+    const weekKey = getCurrentWeekKey();
+    const entries = getWeekEntries(weekKey);
+    const entry = entries.find(e => e.id === entryId);
+    
+    if (entry) {
+        // 複製記錄資料但清除 ID 和日期相關欄位
+        const copiedEntry = {
+            ...entry,
+            id: '', // 清空 ID，儲存時會產生新的
+            date: '', // 清空日期，讓使用者重新選擇
+            startDate: '', // 清空開始日期
+            endDate: '' // 清空結束日期
+        };
+        
+        fillForm(copiedEntry);
+        // 滾動到表單頂部
+        document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+        showSuccessMessage('工時記錄已複製，請修改日期後儲存');
+    }
+}
+
 // 刪除工時記錄
 function deleteEntry(entryId) {
     if (!confirm('確定要刪除這筆工時記錄嗎？')) {
@@ -820,6 +1052,7 @@ function renderEntriesList() {
             <td><strong>${entry.ttlHours || 0}</strong></td>
             <td class="entry-actions">
                 <button class="btn-edit-entry" onclick="editEntry('${entry.id}')">編輯</button>
+                <button class="btn-copy-entry" onclick="copyEntry('${entry.id}')">複製</button>
                 <button class="btn-delete-entry" onclick="deleteEntry('${entry.id}')">刪除</button>
             </td>
         `;
@@ -882,6 +1115,12 @@ async function initEditPage() {
     const dateRange = getWeekDateRange(weekNumber, year);
     document.getElementById('date-range').textContent =
         `${formatDate(dateRange.start)} 至 ${formatDate(dateRange.end)}`;
+    
+    // 設置日期欄位的限制範圍
+    setDateFieldLimits(dateRange.start, dateRange.end);
+    
+    // 檢查並顯示正規化模式狀態
+    updateNormalizationModeDisplay(weekKey);
     
     // 載入並顯示全域基本資料
     const basicInfo = loadGlobalBasicInfo();
