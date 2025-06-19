@@ -1,23 +1,115 @@
-// 簡易 CSV 解析 function，回傳 array of objects
+// 改進的 CSV 解析 function，支援引號包圍的欄位，回傳 array of objects
 function parseCSV(text) {
     console.log('[parseCSV] called');
     const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map(h => h.trim());
-    const arr = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const obj = {};
-        headers.forEach((h, i) => {
-            if (h === 'Regular Hours' || h === 'OT Hours' || h === 'TTL_Hours') {
-                obj[h] = parseFloat(values[i]) || 0;
+    if (lines.length < 2) {
+        console.warn('[parseCSV] CSV檔案格式不正確：少於2行');
+        return [];
+    }
+    
+    // 解析 CSV 行，支援引號包圍的欄位
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // 雙引號轉義
+                    current += '"';
+                    i++; // 跳過下一個引號
+                } else {
+                    // 切換引號狀態
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // 在引號外的逗號才是分隔符
+                result.push(current.trim());
+                current = '';
             } else {
-                obj[h] = values[i] || '';
+                current += char;
             }
-        });
-        return obj;
-    });
-    console.log('[parseCSV] result:', arr);
-    return arr;
+        }
+        
+        // 加入最後一個欄位
+        result.push(current.trim());
+        return result;
+    }
+    
+    try {
+        const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
+        console.log('[parseCSV] headers:', headers);
+        
+        const arr = lines.slice(1).map((line, index) => {
+            if (!line.trim()) return null; // 跳過空行
+            
+            try {
+                const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
+                const obj = {};
+                
+                headers.forEach((h, i) => {
+                    const value = values[i] || '';
+                    
+                    // 欄位名稱對應表，將CSV欄位名稱轉換為系統內部標準欄位名稱
+                    const fieldMapping = {
+                        'Date': 'date',
+                        'Day': 'date',
+                        '日期': 'date',
+                        'Zone': 'zone',
+                        '區域': 'zone',
+                        'Activity Type': 'activityType',
+                        '活動類型': 'activityType',
+                        'Task': 'task',
+                        '任務': 'task',
+                        'Regular Hours': 'regularHours',
+                        '正常工時': 'regularHours',
+                        'OT Hours': 'otHours',
+                        '加班工時': 'otHours',
+                        'TTL_Hours': 'ttlHours',
+                        'Total Hours': 'ttlHours',
+                        '總工時': 'ttlHours',
+                        'Project': 'project',
+                        '專案': 'project',
+                        'Product Module': 'productModule',
+                        '產品模組': 'productModule',
+                        'PM': 'pm',
+                        '專案經理': 'pm',
+                        'Comments': 'comments',
+                        '備註': 'comments',
+                        'Employee Name': 'employeeName',
+                        '員工姓名': 'employeeName',
+                        'Employee Type': 'employeeType',
+                        '員工類型': 'employeeType'
+                    };
+                    
+                    // 取得標準化的欄位名稱
+                    const standardFieldName = fieldMapping[h] || h.toLowerCase().replace(/\s+/g, '');
+                    
+                    // 處理數字欄位
+                    if (standardFieldName === 'regularHours' || standardFieldName === 'otHours' || standardFieldName === 'ttlHours') {
+                        obj[standardFieldName] = parseFloat(value) || 0;
+                    } else {
+                        obj[standardFieldName] = value;
+                    }
+                });
+                
+                return obj;
+            } catch (err) {
+                console.error(`[parseCSV] 解析第${index + 2}行時發生錯誤:`, err, '行內容:', line);
+                return null;
+            }
+        }).filter(row => row !== null); // 移除空行和錯誤行
+        
+        console.log('[parseCSV] result:', arr);
+        return arr;
+    } catch (err) {
+        console.error('[parseCSV] 解析CSV時發生錯誤:', err);
+        throw new Error('CSV格式錯誤：' + err.message);
+    }
 }
 // ==================== CSV 資料載入與管理 ====================
 
@@ -756,9 +848,22 @@ function importTimesheet() {
             const text = e.target.result;
             try {
                 console.log('[import] 原始CSV內容:', text);
+                
+                // 檢查檔案是否為空
+                if (!text || text.trim().length === 0) {
+                    alert('檔案內容為空，請選擇有效的CSV檔案。');
+                    return;
+                }
+                
                 const data = parseCSV(text);
                 console.log('[import] parseCSV result:', data);
-                // 若 parseCSV 結果沒有週次 key，根據 Date 欄位自動分組
+                
+                // 檢查是否成功解析出資料
+                if (!data || data.length === 0) {
+                    alert('無法從檔案中解析出有效資料，請檢查CSV格式是否正確。');
+                    return;
+                }
+                
                 // 強制將 data 轉為 array
                 console.log('[import] typeof data:', typeof data, 'Array.isArray:', Array.isArray(data));
                 let arr = [];
@@ -768,19 +873,89 @@ function importTimesheet() {
                     arr = Object.values(data).flat();
                 }
                 console.log('[import] 轉換後 arr:', arr);
+                
+                if (arr.length === 0) {
+                    alert('檔案中沒有有效的工時記錄。');
+                    return;
+                }
                 let groupedData = {};
-                arr.forEach(row => {
-                    if (!row || !row.Date) return;
-                    const dateObj = new Date(row.Date);
-                    if (isNaN(dateObj)) return;
-                    // 正確計算 ISO 週次
-                    const year = dateObj.getFullYear();
-                    const weekNumber = getWeekNumber(dateObj);
-                    const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
-                    console.log('[import][分組] Date:', row.Date, 'year:', year, 'weekNumber:', weekNumber, 'weekKey:', weekKey);
-                    if (!groupedData[weekKey]) groupedData[weekKey] = [];
-                    groupedData[weekKey].push(row);
+                const failedRows = [];
+                
+                arr.forEach((row, index) => {
+                    if (!row) return;
+                    
+                    // 檢查日期欄位（支援多種可能的欄位名稱）
+                    const dateValue = row.Date || row.date || row['日期'] || row.Day;
+                    if (!dateValue) {
+                        console.warn(`[import] 第${index + 1}筆記錄缺少日期欄位:`, row);
+                        failedRows.push(`第${index + 1}筆記錄：缺少日期欄位`);
+                        return;
+                    }
+                    
+                    // 改進的日期解析，支援多種格式
+                    let dateObj = null;
+                    const dateStr = dateValue.toString().trim();
+                    
+                    // 嘗試多種日期格式
+                    const dateFormats = [
+                        dateStr, // 原始格式
+                        dateStr.replace(/\//g, '-'), // 將 / 替換為 -
+                        dateStr.replace(/\./g, '-'), // 將 . 替換為 -
+                    ];
+                    
+                    for (const format of dateFormats) {
+                        dateObj = new Date(format);
+                        if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() > 1900) {
+                            break;
+                        }
+                        dateObj = null;
+                    }
+                    
+                    if (!dateObj || isNaN(dateObj.getTime())) {
+                        console.warn(`[import] 第${index + 1}筆記錄日期格式無效:`, dateValue);
+                        failedRows.push(`第${index + 1}筆記錄：日期格式無效 "${dateValue}"`);
+                        return;
+                    }
+                    
+                    try {
+                        // 正確計算週次
+                        const year = dateObj.getFullYear();
+                        const weekNumber = getWeekNumber(dateObj);
+                        const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+                        console.log('[import][分組] Date:', dateValue, 'parsed:', dateObj, 'year:', year, 'weekNumber:', weekNumber, 'weekKey:', weekKey);
+                        
+                        if (!groupedData[weekKey]) groupedData[weekKey] = [];
+                        
+                        // 標準化記錄格式，確保日期統一和必要欄位
+                        const standardizedRow = { ...row };
+                        standardizedRow.date = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD 格式
+                        
+                        // 確保有唯一的 ID
+                        if (!standardizedRow.id) {
+                            standardizedRow.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                        }
+                        
+                        // 確保數字欄位有預設值
+                        standardizedRow.regularHours = standardizedRow.regularHours || 0;
+                        standardizedRow.otHours = standardizedRow.otHours || 0;
+                        standardizedRow.ttlHours = standardizedRow.ttlHours || (standardizedRow.regularHours + standardizedRow.otHours);
+                        
+                        groupedData[weekKey].push(standardizedRow);
+                    } catch (err) {
+                        console.error(`[import] 處理第${index + 1}筆記錄時發生錯誤:`, err, row);
+                        failedRows.push(`第${index + 1}筆記錄：處理時發生錯誤`);
+                    }
                 });
+                
+                // 如果有失敗的記錄，顯示警告
+                if (failedRows.length > 0) {
+                    console.warn('[import] 以下記錄匯入失敗:', failedRows);
+                    const proceed = confirm(`有 ${failedRows.length} 筆記錄匯入失敗：\n${failedRows.slice(0, 5).join('\n')}${failedRows.length > 5 ? '\n...' : ''}\n\n是否繼續匯入其他記錄？`);
+                    if (!proceed) {
+                        alert('匯入已取消');
+                        return;
+                    }
+                }
                 console.log('[import] 自動分組週次結果:', groupedData);
                 // 合併匯入資料到主 timesheets
                 const timesheets = loadAllTimesheets();
@@ -799,22 +974,49 @@ function importTimesheet() {
                 }
                 console.log('[import] importedWeeks:', importedWeeks);
                 console.log('[import] localStorage timesheets(匯入後):', timesheets);
+                
+                if (Object.keys(groupedData).length === 0) {
+                    alert('沒有有效的記錄可以匯入。請檢查CSV檔案中的日期格式和資料內容。');
+                    return;
+                }
+                
                 saveAllTimesheets(timesheets);
                 renderTimesheetCards();
+                
                 if (importedWeeks.length > 0) {
                     const weekInfoList = importedWeeks.map(weekKey => {
-                        const range = getWeekDateRangeFromKey(weekKey);
-                        const start = range.start.toISOString().split('T')[0];
-                        const end = range.end.toISOString().split('T')[0];
-                        return weekKey + ' (' + start + ' ~ ' + end + ')';
+                        try {
+                            const range = getWeekDateRangeFromKey(weekKey);
+                            const start = range.start.toISOString().split('T')[0];
+                            const end = range.end.toISOString().split('T')[0];
+                            const recordCount = groupedData[weekKey].length;
+                            return `${weekKey} (${start} ~ ${end}) - ${recordCount}筆記錄`;
+                        } catch (err) {
+                            console.error('[import] 取得週次範圍失敗:', weekKey, err);
+                            return `${weekKey} - ${groupedData[weekKey].length}筆記錄`;
+                        }
                     });
-                    alert('匯入成功！\n' + weekInfoList.join('\n'));
+                    
+                    const totalRecords = importedWeeks.reduce((sum, weekKey) => sum + groupedData[weekKey].length, 0);
+                    const successMessage = `匯入成功！\n共匯入 ${totalRecords} 筆記錄到 ${importedWeeks.length} 個週次：\n\n${weekInfoList.join('\n')}`;
+                    
+                    if (failedRows.length > 0) {
+                        alert(successMessage + `\n\n注意：有 ${failedRows.length} 筆記錄匯入失敗。`);
+                    } else {
+                        alert(successMessage);
+                    }
                 } else {
-                    alert('未匯入任何週次資料。');
+                    alert('未匯入任何週次資料。所有記錄都被跳過了。');
                 }
             } catch (err) {
                 console.error('[import] 匯入流程發生錯誤:', err);
-                alert('CSV 解析失敗\n' + err);
+                let errorMessage = 'CSV 匯入失敗：\n';
+                if (err.message) {
+                    errorMessage += err.message;
+                } else {
+                    errorMessage += '未知錯誤，請檢查瀏覽器控制台獲取更多資訊。';
+                }
+                alert(errorMessage);
             }
         };
         reader.readAsText(file, 'utf-8');

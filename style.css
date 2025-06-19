@@ -432,14 +432,7 @@ button:hover {
 /* 表單操作按鈕 */
 .form-actions {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 40px;
-    gap: 12px;
-/* 修改表單操作按鈕為水平排列 */
-.form-actions {
-    display: flex;
-    justify-content: space-between; /* 按鈕之間平均分配空間 */
+    justify-content: center; /* 按鈕居中排列 */
     align-items: center;
     margin-bottom: 40px;
     gap: 12px;
@@ -447,11 +440,6 @@ button:hover {
     border-top: 1px solid #e1e4e8;
     margin-top: 20px;
     flex-wrap: wrap; /* 確保在小屏幕上不會擠壓過度 */
-}
-    justify-content: flex-end;
-    padding-top: 20px;
-    border-top: 1px solid #e1e4e8;
-    margin-top: 20px;
 }
 
 .form-actions button {
