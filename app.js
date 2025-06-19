@@ -1,3 +1,24 @@
+// 簡易 CSV 解析 function，回傳 array of objects
+function parseCSV(text) {
+    console.log('[parseCSV] called');
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const arr = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        const obj = {};
+        headers.forEach((h, i) => {
+            if (h === 'Regular Hours' || h === 'OT Hours' || h === 'TTL_Hours') {
+                obj[h] = parseFloat(values[i]) || 0;
+            } else {
+                obj[h] = values[i] || '';
+            }
+        });
+        return obj;
+    });
+    console.log('[parseCSV] result:', arr);
+    return arr;
+}
 // ==================== CSV 資料載入與管理 ====================
 
 // 全域變數儲存 CSV 資料
@@ -18,22 +39,6 @@ async function loadCSVFile(filename) {
 }
 
 // 解析 CSV 文字
-function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(header => header.trim());
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(value => value.trim());
-        const row = {};
-        headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-        });
-        data.push(row);
-    }
-    
-    return data;
-}
 
 // 載入所有 CSV 資料
 async function loadAllCSVData() {
@@ -356,9 +361,12 @@ function renderTimesheetCards() {
     const timesheets = loadAllTimesheets();
     
     Object.keys(timesheets).forEach(key => {
-        // key格式：YYYY-Www
+        // key格式：YYYY-Www，需檢查合法性
+        if (!key || typeof key !== 'string' || !key.includes('-')) return;
         const [year, week] = key.split('-');
+        if (!year || !week || week.length < 2) return;
         const weekNumber = parseInt(week.substring(1));
+        if (isNaN(weekNumber)) return;
         const weekData = timesheets[key];
         
         // 處理新的資料結構（包含 basicInfo 和 entries）
@@ -549,12 +557,22 @@ function getThisWeekKey() {
 }
 
 // 計算週數（ISO 8601）
+/**
+ * 以週日為週首計算週次（YYYY-Www），週日~週六
+ */
 function getWeekNumber(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const d = new Date(date);
+    // 找到本週的週日
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - d.getDay());
+    // 計算今年第一天的週日
+    const firstDay = new Date(d.getFullYear(), 0, 1);
+    const firstSunday = new Date(firstDay);
+    firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
+    // 計算週數
+    const diff = sunday - firstSunday;
+    const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return weekNumber;
 }
 
 // 從週次鍵值取得日期範圍
@@ -728,8 +746,80 @@ function downloadCSVFile(csvContent, filename) {
 
 // 匯入工時表（暫時只提示）
 function importTimesheet() {
-    alert('即將匯入工時表');
-    // 待實現：從CSV導入
+    const input = document.getElementById('import-file');
+    input.value = ''; // 重置 input，避免同檔案無法重選
+    input.onchange = async function (event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const text = e.target.result;
+            try {
+                console.log('[import] 原始CSV內容:', text);
+                const data = parseCSV(text);
+                console.log('[import] parseCSV result:', data);
+                // 若 parseCSV 結果沒有週次 key，根據 Date 欄位自動分組
+                // 強制將 data 轉為 array
+                console.log('[import] typeof data:', typeof data, 'Array.isArray:', Array.isArray(data));
+                let arr = [];
+                if (Array.isArray(data)) {
+                    arr = data;
+                } else if (typeof data === 'object' && data !== null) {
+                    arr = Object.values(data).flat();
+                }
+                console.log('[import] 轉換後 arr:', arr);
+                let groupedData = {};
+                arr.forEach(row => {
+                    if (!row || !row.Date) return;
+                    const dateObj = new Date(row.Date);
+                    if (isNaN(dateObj)) return;
+                    // 正確計算 ISO 週次
+                    const year = dateObj.getFullYear();
+                    const weekNumber = getWeekNumber(dateObj);
+                    const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+                    console.log('[import][分組] Date:', row.Date, 'year:', year, 'weekNumber:', weekNumber, 'weekKey:', weekKey);
+                    if (!groupedData[weekKey]) groupedData[weekKey] = [];
+                    groupedData[weekKey].push(row);
+                });
+                console.log('[import] 自動分組週次結果:', groupedData);
+                // 合併匯入資料到主 timesheets
+                const timesheets = loadAllTimesheets();
+                console.log('[import] localStorage timesheets(匯入前):', timesheets);
+                const importedWeeks = [];
+                for (const weekKey in groupedData) {
+                    console.log('[import] 檢查週次', weekKey, groupedData[weekKey]);
+                    if (timesheets[weekKey]) {
+                        const overwrite = confirm('週次 ' + weekKey + ' 已有資料，是否覆蓋？');
+                        console.log('[import] 覆蓋確認', weekKey, overwrite);
+                        if (!overwrite) continue;
+                    }
+                    timesheets[weekKey] = groupedData[weekKey];
+                    importedWeeks.push(weekKey);
+                    console.log('[import] 已加入週次:', weekKey);
+                }
+                console.log('[import] importedWeeks:', importedWeeks);
+                console.log('[import] localStorage timesheets(匯入後):', timesheets);
+                saveAllTimesheets(timesheets);
+                renderTimesheetCards();
+                if (importedWeeks.length > 0) {
+                    const weekInfoList = importedWeeks.map(weekKey => {
+                        const range = getWeekDateRangeFromKey(weekKey);
+                        const start = range.start.toISOString().split('T')[0];
+                        const end = range.end.toISOString().split('T')[0];
+                        return weekKey + ' (' + start + ' ~ ' + end + ')';
+                    });
+                    alert('匯入成功！\n' + weekInfoList.join('\n'));
+                } else {
+                    alert('未匯入任何週次資料。');
+                }
+            } catch (err) {
+                console.error('[import] 匯入流程發生錯誤:', err);
+                alert('CSV 解析失敗\n' + err);
+            }
+        };
+        reader.readAsText(file, 'utf-8');
+    };
+    input.click();
 }
 
 // ==================== 首頁模態框功能 ====================
@@ -787,6 +877,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-basic-info').addEventListener('click', showBasicInfoModal);
         document.getElementById('btn-new').addEventListener('click', newTimesheet);
         document.getElementById('btn-import').addEventListener('click', importTimesheet);
+        document.getElementById('btn-clear-storage').addEventListener('click', () => {
+            if (confirm('確定要清空所有資料嗎？此操作無法還原。')) {
+                localStorage.clear();
+                renderTimesheetCards();
+                alert('localStorage 已清空');
+            }
+        });
         
         // 綁定基本資料模態框事件
         document.getElementById('btn-save-modal-basic-info').addEventListener('click', saveModalBasicInfo);
