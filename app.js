@@ -1,507 +1,11 @@
-// 複製指定週的工時記錄到目標週
-function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
-    const timesheets = loadAllTimesheets();
-    
-    // 處理來源週資料格式
-    let sourceEntries = [];
-    const sourceWeekData = timesheets[sourceWeekKey];
-    if (Array.isArray(sourceWeekData)) {
-        sourceEntries = sourceWeekData;
-    } else if (sourceWeekData && sourceWeekData.entries) {
-        sourceEntries = sourceWeekData.entries;
-    }
-    
-    if (sourceEntries.length === 0) {
-        alert('來源週沒有工時記錄可以複製。');
-        return;
-    }
-    
-    // 檢查目標週是否已有資料
-    const targetWeekData = timesheets[targetWeekKey];
-    let targetEntries = [];
-    if (Array.isArray(targetWeekData)) {
-        targetEntries = targetWeekData;
-    } else if (targetWeekData && targetWeekData.entries) {
-        targetEntries = targetWeekData.entries;
-    }
-    
-    if (targetEntries.length > 0) {
-        const overwrite = confirm('目標週 (' + targetWeekKey + ') 已有 ' + targetEntries.length + ' 筆工時記錄。\n\n是否要覆蓋這些記錄？');
-        if (!overwrite) {
-            return;
-        }
-    }
-    
-    // 計算日期差異（以週為單位）
-    const [sourceYearStr, sourceWeekStr] = sourceWeekKey.split('-');
-    const [targetYearStr, targetWeekStr] = targetWeekKey.split('-');
-    const sourceYear = parseInt(sourceYearStr);
-    const sourceWeek = parseInt(sourceWeekStr.substring(1));
-    const targetYear = parseInt(targetYearStr);
-    const targetWeek = parseInt(targetWeekStr.substring(1));
-    
-    // 計算週數差異（簡化計算，假設同年）
-    let weekDiff = targetWeek - sourceWeek;
-    if (targetYear !== sourceYear) {
-        // 跨年計算較複雜，這裡簡化處理
-        weekDiff = (targetYear - sourceYear) * 52 + (targetWeek - sourceWeek);
-    }
-    
-    // 複製記錄並調整日期
-    const copiedEntries = sourceEntries.map(entry => {
-        const currentDate = new Date(entry.date);
-        // 調整日期
-        const targetDate = new Date(currentDate);
-        targetDate.setDate(currentDate.getDate() + (weekDiff * 7));
-        
-        return {
-            ...entry,
-            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9), // 生成新的ID
-            date: targetDate.toISOString().split('T')[0] // 更新日期為目標週對應日期
-        };
-    });
-    
-    // 儲存到目標週
-    timesheets[targetWeekKey] = copiedEntries;
-    saveAllTimesheets(timesheets);
-    
-    // 重新渲染卡片
-    renderTimesheetCards();
-    
-    // 顯示成功訊息
-    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
-    const startDate = targetWeekRange.start.toISOString().split('T')[0];
-    const endDate = targetWeekRange.end.toISOString().split('T')[0];
-    showSuccessMessage(`工時記錄已成功複製到 ${targetWeekKey} (${startDate} ~ ${endDate})`);
-}
-function showCopyOptionsModal(sourceWeekKey) {
-    console.log('Inside showCopyOptionsModal function, sourceWeekKey:', sourceWeekKey);
-    
-    // 計算當前週、上週、上上週
-    const now = new Date();
-    console.log('Current Date:', now);
-    const currentWeekNumber = getWeekNumber(now);
-    const currentYear = now.getFullYear();
-    const currentWeekKey = currentYear + '-W' + currentWeekNumber.toString().padStart(2, '0');
-    
-    // 計算上週
-    let lastWeekNumber = currentWeekNumber - 1;
-    let lastWeekYear = currentYear;
-    if (lastWeekNumber < 1) {
-        lastWeekYear = currentYear - 1;
-        const lastDayOfPreviousYear = new Date(lastWeekYear, 11, 31);
-        lastWeekNumber = getWeekNumber(lastDayOfPreviousYear);
-    }
-    const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
-    
-    // 計算上上週
-    let twoWeeksAgoNumber = lastWeekNumber - 1;
-    let twoWeeksAgoYear = lastWeekYear;
-    if (twoWeeksAgoNumber < 1) {
-        twoWeeksAgoYear = lastWeekYear - 1;
-        const lastDayOfPreviousYear = new Date(twoWeeksAgoYear, 11, 31);
-        twoWeeksAgoNumber = getWeekNumber(lastDayOfPreviousYear);
-    }
-    const twoWeeksAgoKey = twoWeeksAgoYear + '-W' + twoWeeksAgoNumber.toString().padStart(2, '0');
-    
-    console.log('Calculated week keys: currentWeekKey=', currentWeekKey, 'lastWeekKey=', lastWeekKey, 'twoWeeksAgoKey=', twoWeeksAgoKey);
-    
-    // 取得來源週的工時記錄數量
-    const timesheets = loadAllTimesheets();
-    let sourceEntries = [];
-    const sourceWeekData = timesheets[sourceWeekKey];
-    if (Array.isArray(sourceWeekData)) {
-        sourceEntries = sourceWeekData;
-    } else if (sourceWeekData && sourceWeekData.entries) {
-        sourceEntries = sourceWeekData.entries;
-    }
-    
-    if (sourceEntries.length === 0) {
-        alert('來源週沒有工時記錄可以複製。');
-        return;
-    }
-    
-    // 判斷來源週相對於現在的時間描述
-    let sourceDescription;
-    if (sourceWeekKey === currentWeekKey) {
-        sourceDescription = '本週工時表';
-    } else if (sourceWeekKey === lastWeekKey) {
-        sourceDescription = '上週工時表';
-    } else if (sourceWeekKey === twoWeeksAgoKey) {
-        sourceDescription = '上上週工時表';
-    } else {
-        // 顯示週數和起迄日期
-        const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
-        const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
-        const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
-        sourceDescription = `${sourceWeekKey} 工時表 (${sourceStartDate} ~ ${sourceEndDate})`;
-    }
-    
-    // 更新模態視窗標題以包含來源週資訊
-    document.querySelector('#copy-options-modal .modal-header h3').textContent =
-        `複製 ${sourceDescription} 到哪一週？`;
-    
-    // 更新模態視窗中的目標週次資訊
-    const currentWeekRange = getWeekDateRangeFromKey(currentWeekKey);
-    const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
-    
-    document.getElementById('copy-current-week-info').textContent =
-        `${currentWeekKey} (${currentWeekRange.start.toISOString().split('T')[0]} ~ ${currentWeekRange.end.toISOString().split('T')[0]})`;
-    document.getElementById('copy-last-week-info').textContent =
-        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
-    
-    // 顯示模態視窗
-    document.getElementById('copy-options-modal').style.display = 'block';
-    
-    // 綁定按鈕事件
-    document.getElementById('copy-btn-current').onclick = function() {
-        handleCopySelection(sourceWeekKey, currentWeekKey);
-    };
-    
-    document.getElementById('copy-btn-last').onclick = function() {
-        handleCopySelection(sourceWeekKey, lastWeekKey);
-    };
-    
-    document.getElementById('copy-btn-custom').onclick = function() {
-        document.getElementById('copy-custom-week-input').style.display = 'block';
-        document.getElementById('copy-custom-week-field').focus();
-    };
-    
-    document.getElementById('copy-btn-custom-confirm').onclick = function() {
-        const customWeekKey = document.getElementById('copy-custom-week-field').value.trim().toUpperCase();
-        if (!customWeekKey) {
-            alert('請輸入週次。');
-            return;
-        }
-        
-        const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
-        if (!weekKeyPattern.test(customWeekKey)) {
-            alert('無效的週次格式。請使用 YYYY-WNN 格式。');
-            return;
-        }
-        
-        handleCopySelection(sourceWeekKey, customWeekKey);
-    };
-    
-    document.getElementById('copy-btn-custom-cancel').onclick = function() {
-        document.getElementById('copy-custom-week-input').style.display = 'none';
-        document.getElementById('copy-custom-week-field').value = '';
-    };
-    
-    document.getElementById('copy-btn-cancel').onclick = function() {
-        closeCopyModal();
-    };
-}
-
-// 處理複製選擇的函數
-function handleCopySelection(sourceWeekKey, targetWeekKey) {
-    // 顯示確認對話框
-    const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
-    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
-    const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
-    const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
-    const targetStartDate = targetWeekRange.start.toISOString().split('T')[0];
-    const targetEndDate = targetWeekRange.end.toISOString().split('T')[0];
-    
-    // 取得來源週的工時記錄數量
-    const timesheets = loadAllTimesheets();
-    let sourceEntries = [];
-    const sourceWeekData = timesheets[sourceWeekKey];
-    if (Array.isArray(sourceWeekData)) {
-        sourceEntries = sourceWeekData;
-    } else if (sourceWeekData && sourceWeekData.entries) {
-        sourceEntries = sourceWeekData.entries;
-    }
-    
-    const confirmMessage = `確認要複製工時記錄嗎？\n\n` +
-                          `來源週：${sourceWeekKey}\n` +
-                          `日期範圍：${sourceStartDate} ~ ${sourceEndDate}\n` +
-                          `記錄筆數：${sourceEntries.length} 筆\n\n` +
-                          `目標週：${targetWeekKey}\n` +
-                          `日期範圍：${targetStartDate} ~ ${targetEndDate}\n\n` +
-                          `所有日期將自動調整為目標週對應日期。`;
-    
-    if (confirm(confirmMessage)) {
-        copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
-        closeCopyModal();
-    }
-}
-
-// 關閉複製模態視窗的函數
-function closeCopyModal() {
-    document.getElementById('copy-options-modal').style.display = 'none';
-    document.getElementById('copy-custom-week-input').style.display = 'none';
-    document.getElementById('copy-custom-week-field').value = '';
-}
-// 改進的 CSV 解析 function，支援引號包圍的欄位，回傳 array of objects
-function parseCSV(text) {
-    console.log('[parseCSV] called');
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) {
-        console.warn('[parseCSV] CSV檔案格式不正確：少於2行');
-        return [];
-    }
-    
-    // 解析 CSV 行，支援引號包圍的欄位
-    function parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            const nextChar = line[i + 1];
-            
-            if (char === '"') {
-                if (inQuotes && nextChar === '"') {
-                    // 雙引號轉義
-                    current += '"';
-                    i++; // 跳過下一個引號
-                } else {
-                    // 切換引號狀態
-                    inQuotes = !inQuotes;
-                }
-            } else if (char === ',' && !inQuotes) {
-                // 在引號外的逗號才是分隔符
-                result.push(current.trim());
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        
-        // 加入最後一個欄位
-        result.push(current.trim());
-        return result;
-    }
-    
-    try {
-        const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
-        console.log('[parseCSV] headers:', headers);
-        
-        const arr = lines.slice(1).map((line, index) => {
-            if (!line.trim()) return null; // 跳過空行
-            
-            try {
-                const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
-                const obj = {};
-                
-                headers.forEach((h, i) => {
-                    const value = values[i] || '';
-                    
-                    // 對於CSV檔案，我們保持原始欄位名稱不變，不做轉換
-                    // 這樣可以確保projectcode.csv和productcode.csv中的Zone、Project等欄位能正確使用
-                    
-                    // 數值欄位處理
-                    const numericFields = ['Regular Hours', 'OT Hours', 'TTL_Hours', 'Total Hours', '正常工時', '加班工時', '總工時'];
-                    const isNumericField = numericFields.includes(h);
-                    
-                    if (isNumericField) {
-                        obj[h] = parseFloat(value) || 0;
-                    } else {
-                        obj[h] = value;
-                    }
-                    
-                    // 為了相容性，也建立一些常用的標準化欄位名稱
-                    if (h === 'Regular Hours' || h === '正常工時') {
-                        obj['regularHours'] = parseFloat(value) || 0;
-                    } else if (h === 'OT Hours' || h === '加班工時') {
-                        obj['otHours'] = parseFloat(value) || 0;
-                    } else if (h === 'TTL_Hours' || h === 'Total Hours' || h === '總工時') {
-                        obj['ttlHours'] = parseFloat(value) || 0;
-                    }
-                    
-                });
-                
-                return obj;
-            } catch (err) {
-                console.error(`[parseCSV] 解析第${index + 2}行時發生錯誤:`, err, '行內容:', line);
-                return null;
-            }
-        }).filter(row => row !== null); // 移除空行和錯誤行
-        
-        console.log('[parseCSV] result:', arr);
-        return arr;
-    } catch (err) {
-        console.error('[parseCSV] 解析CSV時發生錯誤:', err);
-        throw new Error('CSV格式錯誤：' + err.message);
-    }
-}
-// ==================== CSV 資料載入與管理 ====================
-
-// 全域變數儲存 CSV 資料
-let projectCodeData = [];
-let productCodeData = [];
-let activityTypeData = [];
-
-// 載入 CSV 檔案
-async function loadCSVFile(filename) {
-    try {
-        const response = await fetch(filename);
-        const text = await response.text();
-        return parseCSV(text);
-    } catch (error) {
-        console.error(`載入 ${filename} 失敗:`, error);
-        return [];
-    }
-}
-
-// 解析 CSV 文字
-
-// 載入所有 CSV 資料
-async function loadAllCSVData() {
-    try {
-        projectCodeData = await loadCSVFile('projectcode.csv');
-        productCodeData = await loadCSVFile('productcode.csv');
-        activityTypeData = await loadCSVFile('activityType.csv');
-        
-        console.log('CSV 資料載入完成:', {
-            projects: projectCodeData.length,
-            products: productCodeData.length,
-            activities: activityTypeData.length
-        });
-        
-        // 初始化完成後更新選項
-        updateProjectOptions();
-        updateActivityTypeOptions();
-        
-    } catch (error) {
-        console.error('載入 CSV 資料失敗:', error);
-    }
-}
-
-// 根據 Zone 篩選專案
-function getProjectsByZone(zone) {
-    if (!zone || !projectCodeData.length) return [];
-    return projectCodeData.filter(project => project.Zone === zone);
-}
-
-// 根據專案取得專案經理
-function getPMByProject(projectName) {
-    const project = projectCodeData.find(p => p.Project === projectName);
-    return project ? project.PM : '';
-}
-
-// 根據 Zone 篩選產品模組
-function getProductModulesByZone(zone) {
-    if (!zone || !productCodeData.length) return [];
-    return productCodeData.filter(product => product.Zone === zone);
-}
-
-// 更新專案選項
-function updateProjectOptions() {
-    const zoneSelect = document.getElementById('zone');
-    
-    if (!zoneSelect) return;
-    
-    // 監聽 Zone 變更
-    zoneSelect.addEventListener('change', function() {
-        const selectedZone = this.value;
-        updateProjectDropdown(selectedZone);
-        updateProductModuleDropdown(selectedZone);
-        // 清空相關欄位
-        const pmField = document.getElementById('pm');
-        if (pmField) pmField.value = '';
-    });
-}
-
-// 更新專案下拉選單
-function updateProjectDropdown(zone) {
-    const projectField = document.getElementById('project');
-    if (!projectField) return;
-    
-    // 如果是 input 欄位，先將其轉換為 select
-    if (projectField.tagName === 'INPUT') {
-        const select = document.createElement('select');
-        select.id = 'project';
-        select.name = 'project';
-        select.className = projectField.className;
-        projectField.parentNode.replaceChild(select, projectField);
-    }
-    
-    const projectSelect = document.getElementById('project');
-    
-    // 清空現有選項
-    projectSelect.innerHTML = '<option value="">請選擇專案</option>';
-    
-    if (!zone) return;
-    
-    // 取得該 Zone 的專案
-    const projects = getProjectsByZone(zone);
-    
-    projects.forEach(project => {
-        const option = document.createElement('option');
-        option.value = project.Project;
-        option.textContent = `${project.Project} (${project['Charge Code']})`;
-        option.dataset.pm = project.PM;
-        projectSelect.appendChild(option);
-    });
-    
-    // 移除舊的事件監聽器並添加新的
-    projectSelect.replaceWith(projectSelect.cloneNode(true));
-    const newProjectSelect = document.getElementById('project');
-    
-    // 監聽專案選擇變更
-    newProjectSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const pmField = document.getElementById('pm');
-        if (pmField && selectedOption && selectedOption.dataset.pm) {
-            pmField.value = selectedOption.dataset.pm;
-        } else if (pmField) {
-            pmField.value = '';
-        }
-    });
-}
-
-// 更新產品模組下拉選單
-function updateProductModuleDropdown(zone) {
-    const productModuleField = document.getElementById('productModule');
-    if (!productModuleField) return;
-    
-    // 如果是 input 欄位，先將其轉換為 select
-    if (productModuleField.tagName === 'INPUT') {
-        const select = document.createElement('select');
-        select.id = 'productModule';
-        select.name = 'productModule';
-        select.className = productModuleField.className;
-        productModuleField.parentNode.replaceChild(select, productModuleField);
-    }
-    
-    const productModuleSelect = document.getElementById('productModule');
-    
-    // 清空現有選項
-    productModuleSelect.innerHTML = '<option value="">請選擇產品模組</option>';
-    
-    if (!zone) return;
-    
-    // 取得該 Zone 的產品模組
-    const productModules = getProductModulesByZone(zone);
-    
-    productModules.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product['Product Module'];
-        option.textContent = product['Product Module'];
-        productModuleSelect.appendChild(option);
-    });
-}
-
-// 更新活動類型選項
-function updateActivityTypeOptions() {
-    const activitySelect = document.getElementById('activityType');
-    if (!activitySelect || !activityTypeData.length) return;
-    
-    // 清空現有選項（除了第一個預設選項）
-    activitySelect.innerHTML = '<option value="">請選擇活動類型</option>';
-    
-    activityTypeData.forEach(activity => {
-        if (activity['Activity Type']) {
-            const option = document.createElement('option');
-            option.value = activity['Activity Type'];
-            option.textContent = activity['Activity Type'];
-            activitySelect.appendChild(option);
-        }
-    });
-}
+import { loadAllTimesheets, saveAllTimesheets, loadGlobalBasicInfo, saveGlobalBasicInfo, getWeekEntries, saveWeekEntries } from './modules/storageModule.js';
+import { loadAllCSVData, generateCSVContent, downloadCSVFile, parseCSV } from './modules/csvModule.js';
+import { getWeekNumber, getWeekDateRangeFromKey, formatDate, getWeekDateRange, getLastWeekKey, getThisWeekKey } from './modules/dateModule.js';
+import {
+    showSuccessMessage,
+    showCopyOptionsModal,
+    closeCopyModal
+} from './modules/uiModule.js';
 
 // 設置日期欄位的限制範圍
 function setDateFieldLimits(startDate, endDate) {
@@ -535,19 +39,6 @@ function validateDateInWeekRange(date, startDate, endDate) {
     return inputDate >= startDate && inputDate <= endDate;
 }
 
-// 啟用正規化模式
-function enableNormalizationMode(weekKey) {
-    // 儲存正規化狀態到 localStorage
-    const normalizationData = {
-        weekKey: weekKey,
-        enabled: true,
-        timestamp: new Date().toISOString()
-    };
-    localStorage.setItem(`normalization_${weekKey}`, JSON.stringify(normalizationData));
-    
-    // 更新 UI 顯示正規化模式狀態
-    updateNormalizationModeDisplay(weekKey);
-}
 
 // 檢查是否啟用正規化模式
 function isNormalizationEnabled(weekKey) {
@@ -573,7 +64,7 @@ function updateNormalizationModeDisplay(weekKey) {
         alertDiv.innerHTML = `
             <div class="alert alert-info">
                 <strong>📊 正規化模式已啟用</strong> - 該週工時超過40小時，匯出時將自動進行正規化計算
-                <button onclick="disableNormalizationMode('${weekKey}')" class="btn-disable-normalization">停用</button>
+                <button onclick="window.disableNormalizationMode('${weekKey}')" class="btn-disable-normalization">停用</button>
             </div>
         `;
         weekInfoDiv.appendChild(alertDiv);
@@ -581,11 +72,14 @@ function updateNormalizationModeDisplay(weekKey) {
 }
 
 // 停用正規化模式
-function disableNormalizationMode(weekKey) {
+window.disableNormalizationMode = function(weekKey) {
     localStorage.removeItem(`normalization_${weekKey}`);
     updateNormalizationModeDisplay(weekKey);
     showSuccessMessage('正規化模式已停用');
-}
+};
+
+// 使複製模態框關閉函數全局可用
+window.closeCopyModal = closeCopyModal;
 
 // 匯出時進行正規化計算
 function performNormalizationForExport(entries) {
@@ -615,51 +109,7 @@ function performNormalizationForExport(entries) {
 
     return entries; // 不需要正規化
 }
-// 格式化日期為 YYYY-MM-DD（本地時間）
-function formatDate(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
 
-// 從localStorage加載所有工時表數據
-function loadAllTimesheets() {
-    const data = localStorage.getItem('timesheets');
-    return data ? JSON.parse(data) : {};
-}
-
-// 保存所有工時表數據到localStorage
-function saveAllTimesheets(timesheets) {
-    localStorage.setItem('timesheets', JSON.stringify(timesheets));
-}
-
-// 獲取指定週數的日期範圍（週日到週六）
-function getWeekDateRange(weekNumber, year) {
-    // 簡單實現：假設year和weekNumber是有效的
-    // 實際應根據ISO週數計算，這裡簡化為從當年第一週的週日開始推算
-    // 注意：這只是一個示例，實際的日期計算需要更嚴謹的邏輯
-    const firstDayOfYear = new Date(year, 0, 1);
-    const firstSunday = new Date(firstDayOfYear);
-    // 調整到第一週的週日（假設第一週從1月1日所在週的週日開始）
-    firstSunday.setDate(firstDayOfYear.getDate() - firstDayOfYear.getDay());
-    
-    const startDate = new Date(firstSunday);
-    startDate.setDate(firstSunday.getDate() + (weekNumber - 1) * 7);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    
-    return {
-        start: startDate,
-        end: endDate
-    };
-}
-
-// 計算填寫進度（根據記錄筆數和預期5個工作日？這裡簡化為記錄筆數是否大於0）
-function calculateProgress(entries) {
-    // 如果有記錄，則認為填寫了，進度100%；否則0
-    return entries && entries.length > 0 ? 100 : 0;
-}
 
 // 渲染工時表卡片
 function renderTimesheetCards() {
@@ -764,7 +214,7 @@ console.log('Attempting to call showCopyOptionsModal with weekKey:', weekKey);
     document.querySelectorAll('.btn-export').forEach(btn => {
         btn.addEventListener('click', () => {
             const weekKey = btn.getAttribute('data-week');
-            exportTimesheet(weekKey);
+            window.exportTimesheet(weekKey);
         });
     });
     
@@ -851,53 +301,7 @@ function showWeekSelectionModal() {
     modal.style.display = 'block';
 }
 
-// 取得上週的週次鍵值
-function getLastWeekKey() {
-    const today = new Date();
-    const lastMonday = new Date(today);
-    lastMonday.setDate(today.getDate() - today.getDay() - 6);
-    
-    const year = lastMonday.getFullYear();
-    const weekNumber = getWeekNumber(lastMonday);
-    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
-}
 
-// 取得本週的週次鍵值
-function getThisWeekKey() {
-    const today = new Date();
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() - today.getDay() + 1);
-    
-    const year = thisMonday.getFullYear();
-    const weekNumber = getWeekNumber(thisMonday);
-    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
-}
-
-// 計算週數（ISO 8601）
-/**
- * 以週日為週首計算週次（YYYY-Www），週日~週六
- */
-function getWeekNumber(date) {
-    const d = new Date(date);
-    // 找到本週的週日
-    const sunday = new Date(d);
-    sunday.setDate(d.getDate() - d.getDay());
-    // 計算今年第一天的週日
-    const firstDay = new Date(d.getFullYear(), 0, 1);
-    const firstSunday = new Date(firstDay);
-    firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
-    // 計算週數
-    const diff = sunday - firstSunday;
-    const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
-    return weekNumber;
-}
-
-// 從週次鍵值取得日期範圍
-function getWeekDateRangeFromKey(weekKey) {
-    const [year, week] = weekKey.split('-');
-    const weekNumber = parseInt(week.substring(1));
-    return getWeekDateRange(weekNumber, year);
-}
 
 // 修改工時表（跳轉到編輯頁面）
 function editTimesheet(weekKey) {
@@ -916,7 +320,7 @@ function deleteTimesheet(weekKey) {
 }
 
 // 匯出工時表為CSV檔案
-function exportTimesheet(weekKey) {
+window.exportTimesheet = function(weekKey) {
     try {
         const entries = getWeekEntries(weekKey);
         if (!entries || entries.length === 0) {
@@ -938,7 +342,7 @@ function exportTimesheet(weekKey) {
         }
 
         // 準備CSV內容
-        const csvContent = generateCSVContent(exportEntries, weekKey);
+        const csvContent = generateCSVContent(exportEntries);
 
         // 創建並下載檔案
         downloadCSVFile(csvContent, `工時表_${weekKey}.csv`);
@@ -950,7 +354,7 @@ function exportTimesheet(weekKey) {
         console.error('匯出失敗:', error);
         alert('匯出失敗，請檢查瀏覽器控制台');
     }
-}
+};
 // 滙出未經正規化的原始工時
 function exportRawTimesheet(weekKey) {
     try {
@@ -960,7 +364,7 @@ function exportRawTimesheet(weekKey) {
             return;
         }
         // 直接滙出原始工時資料
-        const csvContent = generateCSVContent(entries, weekKey);
+        const csvContent = generateCSVContent(entries);
         downloadCSVFile(csvContent, `工時表_${weekKey}_原始.csv`);
         showSuccessMessage(`${weekKey} 工時表（原始）已匯出`);
     } catch (error) {
@@ -969,97 +373,6 @@ function exportRawTimesheet(weekKey) {
     }
 }
 
-// 生成CSV內容
-function generateCSVContent(entries, weekKey) {
-    // CSV標題行（按照指定格式）
-    const headers = [
-        'Name',
-        'Zone',
-        'Project',
-        'Product Module',
-        'Activity Type',
-        'Task',
-        'Regular Hours',
-        'OT Hours',
-        'TTL_Hours',
-        'Date',
-        'Start Date',
-        'End Date',
-        'Comments',
-        'PM',
-        'InternalOrOutsource'
-    ];
-
-    // 載入基本資料
-    const basicInfo = loadGlobalBasicInfo();
-    
-    // 轉換資料行
-    const dataRows = entries.map(entry => {
-        const regularHours = parseFloat(entry.regularHours) || 0;
-        const overtimeHours = parseFloat(entry.overtimeHours) || parseFloat(entry.otHours) || 0;
-        const totalHours = parseFloat(entry.ttlHours) || (regularHours + overtimeHours);
-        
-        return [
-            basicInfo.employeeName || '',           // Name
-            entry.zone || '',                       // Zone
-            entry.project || '',                    // Project
-            entry.productModule || '',              // Product Module
-            entry.activityType || '',               // Activity Type
-            entry.task || '',                       // Task
-            regularHours,                           // Regular Hours
-            overtimeHours,                          // OT Hours
-            totalHours,                             // TTL_Hours
-            entry.date || '',                       // Date
-            entry.startDate || '',                  // Start Date
-            entry.endDate || '',                    // End Date
-            entry.comments || '',                   // Comments
-            entry.pm || '',                         // PM
-            basicInfo.employeeType || ''            // InternalOrOutsource
-        ];
-    });
-
-    // 組合CSV內容
-    const csvRows = [headers, ...dataRows];
-    
-    // 轉換為CSV格式字串
-    return csvRows.map(row =>
-        row.map(field => {
-            // 處理包含逗號或換行的欄位
-            const fieldStr = String(field);
-            if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
-                return '"' + fieldStr.replace(/"/g, '""') + '"';
-            }
-            return fieldStr;
-        }).join(',')
-    ).join('\n');
-}
-
-// 下載CSV檔案
-function downloadCSVFile(csvContent, filename) {
-    try {
-        console.log('[downloadCSVFile] 開始下載', { filename, csvContentSample: csvContent.slice(0, 100) });
-        // 添加BOM以支援中文
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-        console.log('[downloadCSVFile] Blob created', blob);
-        const url = URL.createObjectURL(blob);
-        console.log('[downloadCSVFile] Object URL', url);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        // 添加到頁面並觸發下載
-        document.body.appendChild(link);
-        link.click();
-        console.log('[downloadCSVFile] link.click() 已觸發');
-        // 清理
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        console.log('[downloadCSVFile] 清理完成');
-    } catch (err) {
-        console.error('[downloadCSVFile] 發生錯誤', err);
-    }
-}
 
 // 匯入工時表（暫時只提示）
 function importTimesheet() {
@@ -1087,6 +400,78 @@ function importTimesheet() {
                 if (!data || data.length === 0) {
                     alert('無法從檔案中解析出有效資料，請檢查CSV格式是否正確。');
                     return;
+                }
+                
+                // 檢查全域基本資料
+                let globalBasicInfo = loadGlobalBasicInfo();
+                let shouldCreateBasicInfo = false;
+                
+                if (!globalBasicInfo || !globalBasicInfo.employeeName) {
+                    // 嘗試從CSV中提取基本資料
+                    const firstRowWithName = data.find(row => {
+                        const name = row.Name || row.name || row['姓名'] || '';
+                        return name.trim();
+                    });
+                    
+                    if (!firstRowWithName) {
+                        alert('無法從CSV檔案中找到員工姓名，請確保 CSV 檔案包含 Name 欄位或先手動設定基本資料。');
+                        return;
+                    }
+                    
+                    const extractedName = (firstRowWithName.Name || firstRowWithName.name || firstRowWithName['姓名'] || '').trim();
+                    const extractedType = (firstRowWithName.InternalOrOutsource || firstRowWithName.internalOrOutsource || firstRowWithName['內部外包'] || 'Internal').trim();
+                    
+                    const proceed = confirm(
+                        `ℹ️ 尚未設定全域基本資料\n\n` +
+                        `系統將為您代入以下基本資料（從CSV檔案提取）：\n\n` +
+                        `📝 員工姓名：${extractedName}\n` +
+                        `🏢 員工類型：${extractedType}\n\n` +
+                        `✓ 代入後將自動儲存為全域基本資料（全 App 共用）\n` +
+                        `✓ 所有工時記錄將使用這些資料\n\n` +
+                        `是否同意代入並繼續滙入？`
+                    );
+                    
+                    if (!proceed) {
+                        alert('滙入已取消。您可以先手動設定基本資料或確保CSV檔案包含正確的員工資料。');
+                        return;
+                    }
+                    
+                    // 創建全域基本資料
+                    globalBasicInfo = {
+                        employeeName: extractedName,
+                        employeeType: extractedType
+                    };
+                    shouldCreateBasicInfo = true;
+                }
+                
+                // 檢查CSV中的員工姓名是否與全域設定一致
+                const csvEmployeeNames = new Set();
+                data.forEach(row => {
+                    const name = row.Name || row.name || row['姓名'] || '';
+                    if (name.trim()) {
+                        csvEmployeeNames.add(name.trim());
+                    }
+                });
+                
+                if (csvEmployeeNames.size > 0) {
+                    const globalName = globalBasicInfo.employeeName.trim();
+                    const differentNames = Array.from(csvEmployeeNames).filter(name => name !== globalName);
+                    
+                    if (differentNames.length > 0) {
+                        const namesList = differentNames.join('、');
+                        const proceed = confirm(
+                            `警告：CSV檔案中的員工姓名與全域設定不一致！\n\n` +
+                            `全域設定：${globalName}\n` +
+                            `CSV中發現：${namesList}\n\n` +
+                            `滙入後，所有記錄的員工姓名將統一使用全域設定「${globalName}」。\n\n` +
+                            `是否繼續滙入？`
+                        );
+                        
+                        if (!proceed) {
+                            alert('滙入已取消。請檢查CSV檔案中的員工姓名或更新全域基本資料設定。');
+                            return;
+                        }
+                    }
                 }
                 
                 // 強制將 data 轉為 array
@@ -1152,20 +537,44 @@ function importTimesheet() {
                         if (!groupedData[weekKey]) groupedData[weekKey] = [];
                         
                         // 標準化記錄格式，確保日期統一和必要欄位
-                        const standardizedRow = { ...row };
-                        standardizedRow.date = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD 格式
+                        const standardizedRow = {
+                            // 基本識別
+                            id: row.id || (Date.now() + '-' + Math.random().toString(36).substring(2, 11)),
+                            
+                            // 日期相關
+                            date: dateObj.toISOString().split('T')[0], // YYYY-MM-DD 格式
+                            startDate: row['Start Date'] || row.startDate || row['開始日期'] || '',
+                            endDate: row['End Date'] || row.endDate || row['結束日期'] || '',
+                            
+                            // 員工資料（使用全域設定）
+                            name: globalBasicInfo.employeeName || '',
+                            internalOrOutsource: globalBasicInfo.employeeType || '',
+                            
+                            // 專案資料
+                            zone: row.Zone || row.zone || row['區域'] || '',
+                            project: row.Project || row.project || row['專案'] || '',
+                            productModule: row['Product Module'] || row.productModule || row['產品模組'] || '',
+                            activityType: row['Activity Type'] || row.activityType || row['活動類型'] || '',
+                            task: row.Task || row.task || row['任務'] || '',
+                            pm: row.PM || row.pm || row['專案經理'] || '',
+                            
+                            // 工時資料
+                            regularHours: parseFloat(row['Regular Hours'] || row.regularHours || row['正常工時'] || 0),
+                            otHours: parseFloat(row['OT Hours'] || row.otHours || row['加班工時'] || 0),
+                            ttlHours: parseFloat(row.TTL_Hours || row.ttlHours || row['總工時'] || 0),
+                            
+                            // 備註
+                            comments: row.Comments || row.comments || row['備註'] || ''
+                        };
                         
-                        // 確保有唯一的 ID
-                        if (!standardizedRow.id) {
-                            standardizedRow.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                        // 如果沒有總工時，則計算
+                        if (!standardizedRow.ttlHours || standardizedRow.ttlHours === 0) {
+                            standardizedRow.ttlHours = standardizedRow.regularHours + standardizedRow.otHours;
                         }
                         
-                        // 確保數字欄位有預設值
-                        standardizedRow.regularHours = standardizedRow.regularHours || 0;
-                        standardizedRow.otHours = standardizedRow.otHours || 0;
-                        standardizedRow.ttlHours = standardizedRow.ttlHours || (standardizedRow.regularHours + standardizedRow.otHours);
-                        
+                        // 記錄處理後的資料到分組中
                         groupedData[weekKey].push(standardizedRow);
+                        console.log(`[import] 成功處理記錄 ${index + 1}:`, standardizedRow);
                     } catch (err) {
                         console.error(`[import] 處理第${index + 1}筆記錄時發生錯誤:`, err, row);
                         failedRows.push(`第${index + 1}筆記錄：處理時發生錯誤`);
@@ -1205,6 +614,12 @@ function importTimesheet() {
                     return;
                 }
                 
+                // 儲存全域基本資料（如果是從CSV提取的）
+                if (shouldCreateBasicInfo) {
+                    saveGlobalBasicInfo(globalBasicInfo);
+                    console.log('[import] 已儲存全域基本資料:', globalBasicInfo);
+                }
+                
                 saveAllTimesheets(timesheets);
                 renderTimesheetCards();
                 
@@ -1223,10 +638,15 @@ function importTimesheet() {
                     });
                     
                     const totalRecords = importedWeeks.reduce((sum, weekKey) => sum + groupedData[weekKey].length, 0);
-                    const successMessage = `匯入成功！\n共匯入 ${totalRecords} 筆記錄到 ${importedWeeks.length} 個週次：\n\n${weekInfoList.join('\n')}`;
+                    let successMessage = `匯入成功！\n共匯入 ${totalRecords} 筆記錄到 ${importedWeeks.length} 個週次：\n\n${weekInfoList.join('\n')}`;
+                    
+                    // 如果有創建基本資料，則加入提示
+                    if (shouldCreateBasicInfo) {
+                        successMessage += `\n\nℹ️ 已自動儲存全域基本資料：\n員工姓名：${globalBasicInfo.employeeName}\n員工類型：${globalBasicInfo.employeeType}`;
+                    }
                     
                     if (failedRows.length > 0) {
-                        alert(successMessage + `\n\n注意：有 ${failedRows.length} 筆記錄匯入失敗。`);
+                        alert(successMessage + `\n\n⚠️ 注意：有 ${failedRows.length} 筆記錄匯入失敗。`);
                     } else {
                         alert(successMessage);
                     }
@@ -1409,7 +829,7 @@ function createLastWeekTimesheet() {
     
     // 生成週次格式 YYYY-Www
     const year = lastMonday.getFullYear();
-    const weekNumber = Math.ceil((((lastMonday - new Date(year, 0, 1)) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7);
+    const weekNumber = getWeekNumber(lastMonday);
     const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
     
     const timesheets = loadAllTimesheets();
@@ -1427,7 +847,7 @@ function createLastWeekTimesheet() {
 
 // 生成唯一 ID
 function generateUniqueId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 // 獲取當前編輯的週次
@@ -1436,44 +856,6 @@ function getCurrentWeekKey() {
     return urlParams.get('week');
 }
 
-// ==================== 全域基本資料管理 ====================
-
-// 載入全域基本資料
-function loadGlobalBasicInfo() {
-    const data = localStorage.getItem('globalBasicInfo');
-    return data ? JSON.parse(data) : null;
-}
-
-// 儲存全域基本資料
-function saveGlobalBasicInfo(basicInfo) {
-    localStorage.setItem('globalBasicInfo', JSON.stringify(basicInfo));
-}
-
-// ==================== 工時記錄管理 ====================
-
-// 獲取指定週次的工時記錄
-function getWeekEntries(weekKey) {
-    const timesheets = loadAllTimesheets();
-    const weekData = timesheets[weekKey];
-    
-    // 處理不同的資料結構
-    if (Array.isArray(weekData)) {
-        // 舊的資料結構，直接是陣列
-        return weekData;
-    } else if (weekData && weekData.entries) {
-        // 新的資料結構，有 entries
-        return weekData.entries;
-    }
-    
-    return [];
-}
-
-// 儲存指定週次的工時記錄
-function saveWeekEntries(weekKey, entries) {
-    const timesheets = loadAllTimesheets();
-    timesheets[weekKey] = entries; // 直接儲存為陣列，簡化結構
-    saveAllTimesheets(timesheets);
-}
 
 // 計算總工時
 function calculateTotalHours() {
@@ -1693,9 +1075,11 @@ function getFormData() {
 // 填充工時記錄表單數據
 function fillForm(entry) {
     document.getElementById('entryId').value = entry.id;
+    
+    // 先設定Zone
     document.getElementById('zone').value = entry.zone || '';
-    document.getElementById('project').value = entry.project || '';
-    document.getElementById('productModule').value = entry.productModule || '';
+    
+    // 其他基本欄位
     document.getElementById('activityType').value = entry.activityType || '';
     document.getElementById('task').value = entry.task || '';
     document.getElementById('regularHours').value = entry.regularHours || '';
@@ -1705,7 +1089,22 @@ function fillForm(entry) {
     document.getElementById('startDate').value = entry.startDate || '';
     document.getElementById('endDate').value = entry.endDate || '';
     document.getElementById('comments').value = entry.comments || '';
-    document.getElementById('pm').value = entry.pm || '';
+    
+    // 在edit.html中重新初始化專案和產品模組下拉選單（根據Zone）
+    if (window.location.pathname.includes('edit.html') && typeof window.initProjectAndProductSelect === 'function') {
+        // 使用setTimeout確保在DOM更新後執行
+        setTimeout(() => {
+            window.initProjectAndProductSelect(entry.project, entry.productModule).then(() => {
+                // 初始化完成後設定PM
+                document.getElementById('pm').value = entry.pm || '';
+            });
+        }, 100);
+    } else {
+        // 如果不在edit.html或沒有initProjectAndProductSelect函數，直接設定
+        document.getElementById('project').value = entry.project || '';
+        document.getElementById('productModule').value = entry.productModule || '';
+        document.getElementById('pm').value = entry.pm || '';
+    }
     
     // 處理原始工時欄位（正規化模式）
     const originalHoursField = document.getElementById('originalHoursField');
@@ -1766,8 +1165,8 @@ function saveEntry() {
     showSuccessMessage('工時記錄已儲存成功！');
 }
 
-// 編輯工時記錄
-function editEntry(entryId) {
+// Make these functions globally accessible for onclick handlers
+window.editEntry = function(entryId) {
     const weekKey = getCurrentWeekKey();
     const entries = getWeekEntries(weekKey);
     const entry = entries.find(e => e.id === entryId);
@@ -1777,10 +1176,9 @@ function editEntry(entryId) {
         // 滾動到表單頂部
         document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
     }
-}
+};
 
-// 複製工時記錄
-function copyEntry(entryId) {
+window.copyEntry = function(entryId) {
     const weekKey = getCurrentWeekKey();
     const entries = getWeekEntries(weekKey);
     const entry = entries.find(e => e.id === entryId);
@@ -1814,10 +1212,9 @@ function copyEntry(entryId) {
         document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
         showSuccessMessage('工時記錄已複製，日期已自動調整');
     }
-}
+};
 
-// 刪除工時記錄
-function deleteEntry(entryId) {
+window.deleteEntry = function(entryId) {
     if (!confirm('確定要刪除這筆工時記錄嗎？')) {
         return;
     }
@@ -1829,7 +1226,7 @@ function deleteEntry(entryId) {
     saveWeekEntries(weekKey, filteredEntries);
     renderEntriesList();
     showSuccessMessage('工時記錄已刪除！');
-}
+};
 
 // 渲染工時記錄列表
 function renderEntriesList() {
@@ -1841,10 +1238,10 @@ function renderEntriesList() {
     
     tbody.innerHTML = '';
     
-    let totalHours = 0;
+    let entryTotalHours = 0;
     
     entries.forEach(entry => {
-        totalHours += entry.ttlHours || 0;
+        entryTotalHours += entry.ttlHours || 0;
         
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -1865,27 +1262,33 @@ function renderEntriesList() {
     });
     
     
-    alert('成功複製 ' + copiedEntries.length + ' 筆工時記錄到目標週！\n\n來源週：' + sourceWeekKey + '\n目標週：' + targetWeekKey + '\n日期範圍：' + startDate + ' ~ ' + endDate + '\n\n所有日期已自動調整為目標週對應日期。');
+    // Update the page statistics display if on edit page
+    updatePageStatistics();
+
+    function updatePageStatistics() {
+        if (window.location.pathname.includes('edit.html')) {
+            const weekKey = getCurrentWeekKey();
+            if (weekKey) {
+                const currentEntries = getWeekEntries(weekKey) || [];
+                const totalRegularHours = currentEntries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
+                const totalOtHours = currentEntries.reduce((sum, entry) => sum + (entry.otHours || 0), 0);
+                const totalHours = currentEntries.reduce((sum, entry) => sum + (entry.ttlHours || 0), 0);
+                
+                const dateRangeDiv = document.getElementById('date-range');
+                if (dateRangeDiv) {
+                    const currentText = dateRangeDiv.innerHTML.split('<span')[0];
+                    dateRangeDiv.innerHTML = currentText + 
+                        `<span style="color:#444;font-size:1em;">
+                        總正常工時：${totalRegularHours}
+                        總加班工時：${totalOtHours}
+                        總工時：${totalHours}
+                        </span>`;
+                }
+            }
+        }
+    }
 }
 
-// 顯示成功訊息
-function showSuccessMessage(message) {
-    // 創建或更新成功訊息元素
-    let successDiv = document.querySelector('.success-message');
-    if (!successDiv) {
-        successDiv = document.createElement('div');
-        successDiv.className = 'success-message';
-        document.querySelector('.form-container').insertBefore(successDiv, document.querySelector('.form-container').firstChild);
-    }
-    
-    successDiv.textContent = message;
-    successDiv.style.display = 'block';
-    
-    // 3秒後自動隱藏
-    setTimeout(() => {
-        successDiv.style.display = 'none';
-    }, 3000);
-}
 
 // 初始化編輯頁面
 async function initEditPage() {
@@ -2032,25 +1435,3 @@ function confirmWeekSelection() {
     showSuccessMessage(`成功建立週次 ${weekKey} 的工時表`);
 }
 
-// 顯示成功訊息
-function showSuccessMessage(message) {
-    // 創建成功訊息元素
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
-    successDiv.innerHTML = `
-        <div class="success-content">
-            <span class="success-icon">✓</span>
-            <span class="success-text">${message}</span>
-        </div>
-    `;
-    
-    // 添加到頁面
-    document.body.appendChild(successDiv);
-    
-    // 3秒後自動移除
-    setTimeout(() => {
-        if (successDiv.parentNode) {
-            successDiv.parentNode.removeChild(successDiv);
-        }
-    }, 3000);
-}
