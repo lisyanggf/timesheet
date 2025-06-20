@@ -98,8 +98,8 @@
                     </div>
                     <div class="form-row">
                         <div class="form-field">
-                            <label for="productModule">產品模組</label>
-                            <select id="productModule" name="productModule">
+                            <label for="productModule">產品模組 *</label>
+                            <select id="productModule" name="productModule" required>
                                 <option value="">請選擇產品模組</option>
                             </select>
                         </div>
@@ -210,7 +210,7 @@
         </div>
     </main>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 <script>
 async function fetchCSV(path) {
     const res = await fetch(path);
@@ -225,23 +225,139 @@ async function fetchCSV(path) {
     });
 }
 
-// 初始化專案名稱與產品模組下拉選單
-async function initProjectAndProductSelect(projectValue, productValue) {
-    // 專案名稱
-    const projectList = await fetchCSV('projectcode.csv');
+// 初始化專案名稱與產品模組下拉選單（根據Zone過濾）
+window.initProjectAndProductSelect = async function(projectValue, productValue) {
+    const selectedZone = document.getElementById('zone')?.value;
+    
+    // 專案名稱（根據Zone過濾）
+    let projectList = [];
+    if (selectedZone) {
+        // 如果已選擇Zone，則按Zone過濾
+        const allProjects = await fetchCSV('projectcode.csv');
+        projectList = allProjects.filter(p => p.Zone === selectedZone);
+    } else {
+        // 如果未選擇Zone，顯示所有專案
+        projectList = await fetchCSV('projectcode.csv');
+    }
+    
     const projectSelect = document.getElementById('project');
     if (projectSelect) {
-        projectSelect.innerHTML = '<option value="">請選擇專案</option>' +
-            projectList.map(p => `<option value="${p.Project}">${p.Project}</option>`).join('');
-        if (projectValue) projectSelect.value = projectValue;
+        if (selectedZone) {
+            projectSelect.innerHTML = '<option value="">請選擇專案</option>' +
+                projectList.map(p => `<option value="${p.Project}">${p.Project}</option>`).join('');
+            projectSelect.disabled = false;
+        } else {
+            projectSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            projectSelect.disabled = true;
+        }
+        if (projectValue && projectList.some(p => p.Project === projectValue)) {
+            projectSelect.value = projectValue;
+        }
     }
-    // 產品模組
-    const productList = await fetchCSV('productcode.csv');
+    
+    // 產品模組（根據Zone過濾）
+    let productList = [];
+    if (selectedZone) {
+        const allProducts = await fetchCSV('productcode.csv');
+        productList = allProducts.filter(p => p.Zone === selectedZone);
+    } else {
+        productList = await fetchCSV('productcode.csv');
+    }
+    
     const productSelect = document.getElementById('productModule');
     if (productSelect) {
-        productSelect.innerHTML = '<option value="">請選擇產品模組</option>' +
-            productList.map(p => `<option value="${p['Product Module']}">${p['Product Module']}</option>`).join('');
-        if (productValue) productSelect.value = productValue;
+        if (selectedZone) {
+            productSelect.innerHTML = '<option value="">請選擇產品模組</option>' +
+                productList.map(p => `<option value="${p['Product Module']}">${p['Product Module']}</option>`).join('');
+            productSelect.disabled = false;
+        } else {
+            productSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            productSelect.disabled = true;
+        }
+        if (productValue && productList.some(p => p['Product Module'] === productValue)) {
+            productSelect.value = productValue;
+        }
+    }
+    
+    // 更新PM欄位（根據所選專案）
+    window.updatePMField();
+};
+
+// 更新PM欄位函數
+window.updatePMField = async function() {
+    const selectedProject = document.getElementById('project')?.value;
+    const pmField = document.getElementById('pm');
+    
+    console.log('updatePMField called, selectedProject:', selectedProject);
+    
+    if (selectedProject && pmField) {
+        const projectList = await fetchCSV('projectcode.csv');
+        const project = projectList.find(p => p.Project === selectedProject);
+        console.log('Found project:', project);
+        if (project && project.PM) {
+            pmField.value = project.PM;
+            console.log('PM field updated to:', project.PM);
+        } else {
+            pmField.value = '';
+            console.log('PM field cleared (no PM found)');
+        }
+    }
+};
+
+// Zone選擇變更事件
+function handleZoneChange() {
+    // 清空專案和產品模組選擇
+    const projectSelect = document.getElementById('project');
+    const productSelect = document.getElementById('productModule');
+    const pmField = document.getElementById('pm');
+    
+    if (projectSelect) projectSelect.value = '';
+    if (productSelect) productSelect.value = '';
+    if (pmField) pmField.value = '';
+    
+    // 重新初始化下拉選單
+    window.initProjectAndProductSelect();
+}
+
+// 專案選擇變更事件
+window.handleProjectChange = function() {
+    window.updatePMField();
+};
+
+
+// 處理專案下拉點擊事件
+function handleProjectClick(event) {
+    const zoneSelect = document.getElementById('zone');
+    if (zoneSelect && !zoneSelect.value) {
+        // 如果Zone未選擇，則自動開啟下拉選單並阻止當前操作
+        event.preventDefault();
+        zoneSelect.focus();
+        // 顯示提示訊息
+        const projectSelect = event.target;
+        const originalTitle = projectSelect.title;
+        projectSelect.title = '請先選擇區域';
+        setTimeout(() => {
+            projectSelect.title = originalTitle;
+        }, 2000);
+        return false;
+    }
+}
+
+// 處理產品模組下拉點擊事件
+function handleProductModuleClick(event) {
+    const zoneSelect = document.getElementById('zone');
+    if (zoneSelect && !zoneSelect.value) {
+        // 如果Zone未選擇，則自動開啟下拉選單並阻止當前操作
+        event.preventDefault();
+        zoneSelect.focus();
+        // 顯示提示訊息
+        const productSelect = event.target;
+        const originalTitle = productSelect.title;
+        productSelect.title = '請先選擇區域';
+        setTimeout(() => {
+            productSelect.title = originalTitle;
+        }, 2000);
+        return false;
     }
 }
 
@@ -286,9 +402,30 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 嘗試取得正在編輯的 entry
     const entry = getEditingEntry();
     if (entry) {
-        await initProjectAndProductSelect(entry.project, entry.productModule);
+        await window.initProjectAndProductSelect(entry.project, entry.productModule);
     } else {
-        await initProjectAndProductSelect();
+        await window.initProjectAndProductSelect();
+    }
+    
+    // 綁定Zone變更事件
+    const zoneSelect = document.getElementById('zone');
+    if (zoneSelect) {
+        zoneSelect.addEventListener('change', handleZoneChange);
+    }
+    
+    // 綁定專案事件
+    const projectSelect = document.getElementById('project');
+    if (projectSelect) {
+        projectSelect.addEventListener('change', handleProjectChange);
+        projectSelect.addEventListener('click', handleProjectClick);
+        projectSelect.addEventListener('focus', handleProjectClick);
+    }
+    
+    // 綁定產品模組事件
+    const productSelect = document.getElementById('productModule');
+    if (productSelect) {
+        productSelect.addEventListener('click', handleProductModuleClick);
+        productSelect.addEventListener('focus', handleProductModuleClick);
     }
 });
 </script>

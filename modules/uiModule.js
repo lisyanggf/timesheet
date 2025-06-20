@@ -1,14 +1,14 @@
 // ==================== UI 與訊息顯示相關 ====================
 
 // Import required modules
-import * as storage from './storageModule.js';
-import * as date from './dateModule.js';
+import { loadAllTimesheets, saveAllTimesheets } from './storageModule.js';
+import { getWeekNumber, getWeekDateRangeFromKey, getWeekDateRange, getLastWeekKey, formatDate } from './dateModule.js';
 
 // 渲染工時表卡片
 export function renderTimesheetCards() {
     const container = document.getElementById('timesheet-cards');
     container.innerHTML = '';
-    const timesheets = storage.loadAllTimesheets();
+    const timesheets = loadAllTimesheets();
 
     Object.keys(timesheets).forEach(key => {
         if (!key || typeof key !== 'string' || !key.includes('-')) return;
@@ -23,7 +23,7 @@ export function renderTimesheetCards() {
         } else if (weekData && weekData.entries) {
             entries = weekData.entries;
         }
-        const dateRange = date.getWeekDateRange(weekNumber, year);
+        const dateRange = getWeekDateRange(weekNumber, year);
         const startStr = dateRange.start.toISOString().split('T')[0];
         const endStr = dateRange.end.toISOString().split('T')[0];
         const totalHours = entries.reduce((sum, entry) => sum + (entry.ttlHours || entry.TTL_Hours || 0), 0);
@@ -82,9 +82,9 @@ export function renderTimesheetCards() {
         btn.addEventListener('click', () => {
             const weekKey = btn.getAttribute('data-week');
             if (confirm(`確定要刪除 ${weekKey} 的工時表嗎？`)) {
-                const timesheets = storage.loadAllTimesheets();
+                const timesheets = loadAllTimesheets();
                 delete timesheets[weekKey];
-                storage.saveAllTimesheets(timesheets);
+                saveAllTimesheets(timesheets);
                 renderTimesheetCards();
             }
         });
@@ -121,7 +121,7 @@ export function showCopyOptionsModal(sourceWeekKey) {
     // 計算當前週、上週、上上週
     const now = new Date();
     console.log('Current Date:', now);
-    const currentWeekNumber = date.getWeekNumber(now);
+    const currentWeekNumber = getWeekNumber(now);
     const currentYear = now.getFullYear();
     const currentWeekKey = currentYear + '-W' + currentWeekNumber.toString().padStart(2, '0');
     
@@ -131,7 +131,7 @@ export function showCopyOptionsModal(sourceWeekKey) {
     if (lastWeekNumber < 1) {
         lastWeekYear = currentYear - 1;
         const lastDayOfPreviousYear = new Date(lastWeekYear, 11, 31);
-        lastWeekNumber = date.getWeekNumber(lastDayOfPreviousYear);
+        lastWeekNumber = getWeekNumber(lastDayOfPreviousYear);
     }
     const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
     
@@ -141,14 +141,14 @@ export function showCopyOptionsModal(sourceWeekKey) {
     if (twoWeeksAgoNumber < 1) {
         twoWeeksAgoYear = lastWeekYear - 1;
         const lastDayOfPreviousYear = new Date(twoWeeksAgoYear, 11, 31);
-        twoWeeksAgoNumber = date.getWeekNumber(lastDayOfPreviousYear);
+        twoWeeksAgoNumber = getWeekNumber(lastDayOfPreviousYear);
     }
     const twoWeeksAgoKey = twoWeeksAgoYear + '-W' + twoWeeksAgoNumber.toString().padStart(2, '0');
     
     console.log('Calculated week keys: currentWeekKey=', currentWeekKey, 'lastWeekKey=', lastWeekKey, 'twoWeeksAgoKey=', twoWeeksAgoKey);
     
     // 取得來源週的工時記錄數量
-    const timesheets = storage.loadAllTimesheets();
+    const timesheets = loadAllTimesheets();
     let sourceEntries = [];
     const sourceWeekData = timesheets[sourceWeekKey];
     if (Array.isArray(sourceWeekData)) {
@@ -172,7 +172,7 @@ export function showCopyOptionsModal(sourceWeekKey) {
         sourceDescription = '上上週工時表';
     } else {
         // 顯示週數和起迄日期
-        const sourceWeekRange = date.getWeekDateRangeFromKey(sourceWeekKey);
+        const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
         const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
         const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
         sourceDescription = `${sourceWeekKey} 工時表 (${sourceStartDate} ~ ${sourceEndDate})`;
@@ -183,8 +183,8 @@ export function showCopyOptionsModal(sourceWeekKey) {
         `複製 ${sourceDescription} 到哪一週？`;
     
     // 更新模態視窗中的目標週次資訊
-    const currentWeekRange = date.getWeekDateRangeFromKey(currentWeekKey);
-    const lastWeekRange = date.getWeekDateRangeFromKey(lastWeekKey);
+    const currentWeekRange = getWeekDateRangeFromKey(currentWeekKey);
+    const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
     
     document.getElementById('copy-current-week-info').textContent =
         `${currentWeekKey} (${currentWeekRange.start.toISOString().split('T')[0]} ~ ${currentWeekRange.end.toISOString().split('T')[0]})`;
@@ -244,15 +244,15 @@ export function closeCopyModal() {
 // 處理複製選擇
 export function handleCopySelection(sourceWeekKey, targetWeekKey) {
     // 顯示確認對話框
-    const sourceWeekRange = date.getWeekDateRangeFromKey(sourceWeekKey);
-    const targetWeekRange = date.getWeekDateRangeFromKey(targetWeekKey);
+    const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+    const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
     const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
     const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
     const targetStartDate = targetWeekRange.start.toISOString().split('T')[0];
     const targetEndDate = targetWeekRange.end.toISOString().split('T')[0];
     
     // 取得來源週的工時記錄數量
-    const timesheets = storage.loadAllTimesheets();
+    const timesheets = loadAllTimesheets();
     let sourceEntries = [];
     const sourceWeekData = timesheets[sourceWeekKey];
     if (Array.isArray(sourceWeekData)) {
@@ -278,7 +278,7 @@ export function handleCopySelection(sourceWeekKey, targetWeekKey) {
 // 複製週工時
 export function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
     try {
-        const timesheets = storage.loadAllTimesheets();
+        const timesheets = loadAllTimesheets();
         
         // 獲取來源週的工時記錄
         let sourceEntries = [];
@@ -295,8 +295,8 @@ export function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
         }
         
         // 計算目標週的日期範圍
-        const sourceWeekRange = date.getWeekDateRangeFromKey(sourceWeekKey);
-        const targetWeekRange = date.getWeekDateRangeFromKey(targetWeekKey);
+        const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+        const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
         
         // 計算日期偏移天數
         const dayOffset = Math.floor((targetWeekRange.start - sourceWeekRange.start) / (1000 * 60 * 60 * 24));
@@ -343,7 +343,7 @@ export function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
         
         // 儲存到目標週
         timesheets[targetWeekKey] = copiedEntries;
-        storage.saveAllTimesheets(timesheets);
+        saveAllTimesheets(timesheets);
         
         // 重新渲染卡片
         renderTimesheetCards();
@@ -370,8 +370,8 @@ export function updateLastWeekButtonDisplay() {
     
     if (button && container) {
         // 檢查上週是否已存在
-        const lastWeekKey = date.getLastWeekKey();
-        const timesheets = storage.loadAllTimesheets();
+        const lastWeekKey = getLastWeekKey();
+        const timesheets = loadAllTimesheets();
         
         if (timesheets[lastWeekKey]) {
             // 上週已存在，隱藏按鈕
@@ -379,7 +379,7 @@ export function updateLastWeekButtonDisplay() {
         } else {
             // 上週不存在，顯示按鈕並設置文字
             container.style.display = 'block';
-            button.textContent = `建立上週工時表 (${date.formatDate(lastMonday)} - ${date.formatDate(lastSunday)})`;
+            button.textContent = `建立上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
         }
     }
 }
@@ -392,13 +392,13 @@ export function createLastWeekTimesheet() {
     
     // 生成週次格式 YYYY-Www
     const year = lastMonday.getFullYear();
-    const weekNumber = date.getWeekNumber(lastMonday);
+    const weekNumber = getWeekNumber(lastMonday);
     const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
     
-    const timesheets = storage.loadAllTimesheets();
+    const timesheets = loadAllTimesheets();
     if (!timesheets[weekKey]) {
         timesheets[weekKey] = [];
-        storage.saveAllTimesheets(timesheets);
+        saveAllTimesheets(timesheets);
     }
     
     // 載入上週工時表

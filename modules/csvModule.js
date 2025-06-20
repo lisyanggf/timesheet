@@ -1,5 +1,7 @@
 // ==================== CSV 資料載入與管理 ====================
 
+import { loadGlobalBasicInfo } from './storageModule.js';
+
 // 全域變數儲存 CSV 資料
 let projectCodeData = [];
 let productCodeData = [];
@@ -152,3 +154,220 @@ export function getProductModulesByZone(zone) {
     return productCodeData.filter(product => product.Zone === zone);
 }
 
+// 更新專案選項
+export function updateProjectOptions() {
+    const zoneSelect = document.getElementById('zone');
+    
+    if (!zoneSelect) return;
+    
+    // 監聽 Zone 變更
+    zoneSelect.addEventListener('change', function() {
+        const selectedZone = this.value;
+        updateProjectDropdown(selectedZone);
+        updateProductModuleDropdown(selectedZone);
+        // 清空相關欄位
+        const pmField = document.getElementById('pm');
+        if (pmField) pmField.value = '';
+    });
+}
+
+// 更新專案下拉選單
+export function updateProjectDropdown(zone) {
+    const projectField = document.getElementById('project');
+    if (!projectField) return;
+    
+    // 如果是 input 欄位，先將其轉換為 select
+    if (projectField.tagName === 'INPUT') {
+        const select = document.createElement('select');
+        select.id = 'project';
+        select.name = 'project';
+        select.className = projectField.className;
+        projectField.parentNode.replaceChild(select, projectField);
+    }
+    
+    const projectSelect = document.getElementById('project');
+    
+    // 清空現有選項
+    projectSelect.innerHTML = '<option value="">請選擇專案</option>';
+    
+    if (!zone) return;
+    
+    // 取得該 Zone 的專案
+    const projects = getProjectsByZone(zone);
+    
+    projects.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.Project;
+        option.textContent = `${project.Project} (${project['Charge Code']})`;
+        option.dataset.pm = project.PM;
+        projectSelect.appendChild(option);
+    });
+    
+    // 移除舊的事件監聽器並添加新的
+    projectSelect.replaceWith(projectSelect.cloneNode(true));
+    const newProjectSelect = document.getElementById('project');
+    
+    // 監聽專案選擇變更
+    newProjectSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const pmField = document.getElementById('pm');
+        if (pmField && selectedOption && selectedOption.dataset.pm) {
+            pmField.value = selectedOption.dataset.pm;
+            console.log('PM updated via csvModule to:', selectedOption.dataset.pm);
+        } else if (pmField) {
+            pmField.value = '';
+        }
+        
+        // 也調用edit.html中的handleProjectChange函數（如果存在）
+        if (typeof window.handleProjectChange === 'function') {
+            window.handleProjectChange();
+        }
+        
+        // 也直接調用updatePMField函數（如果存在）
+        if (typeof window.updatePMField === 'function') {
+            window.updatePMField();
+        }
+    });
+}
+
+// 更新產品模組下拉選單
+export function updateProductModuleDropdown(zone) {
+    const productModuleField = document.getElementById('productModule');
+    if (!productModuleField) return;
+    
+    // 如果是 input 欄位，先將其轉換為 select
+    if (productModuleField.tagName === 'INPUT') {
+        const select = document.createElement('select');
+        select.id = 'productModule';
+        select.name = 'productModule';
+        select.className = productModuleField.className;
+        productModuleField.parentNode.replaceChild(select, productModuleField);
+    }
+    
+    const productModuleSelect = document.getElementById('productModule');
+    
+    // 清空現有選項
+    productModuleSelect.innerHTML = '<option value="">請選擇產品模組</option>';
+    
+    if (!zone) return;
+    
+    // 取得該 Zone 的產品模組
+    const productModules = getProductModulesByZone(zone);
+    
+    productModules.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product['Product Module'];
+        option.textContent = product['Product Module'];
+        productModuleSelect.appendChild(option);
+    });
+}
+
+// 更新活動類型選項
+export function updateActivityTypeOptions() {
+    const activitySelect = document.getElementById('activityType');
+    if (!activitySelect || !activityTypeData.length) return;
+    
+    // 清空現有選項（除了第一個預設選項）
+    activitySelect.innerHTML = '<option value="">請選擇活動類型</option>';
+    
+    activityTypeData.forEach(activity => {
+        if (activity['Activity Type']) {
+            const option = document.createElement('option');
+            option.value = activity['Activity Type'];
+            option.textContent = activity['Activity Type'];
+            activitySelect.appendChild(option);
+        }
+    });
+}
+
+// 生成CSV內容
+export function generateCSVContent(entries) {
+    // CSV標題行（按照指定格式）
+    const headers = [
+        'Name',
+        'Zone',
+        'Project',
+        'Product Module',
+        'Activity Type',
+        'Task',
+        'Regular Hours',
+        'OT Hours',
+        'TTL_Hours',
+        'Date',
+        'Start Date',
+        'End Date',
+        'Comments',
+        'PM',
+        'InternalOrOutsource'
+    ];
+
+    // 載入基本資料
+    const basicInfo = loadGlobalBasicInfo();
+    
+    // 轉換資料行
+    const dataRows = entries.map(entry => {
+        const regularHours = parseFloat(entry.regularHours) || 0;
+        const overtimeHours = parseFloat(entry.overtimeHours) || parseFloat(entry.otHours) || 0;
+        const totalHours = parseFloat(entry.ttlHours) || (regularHours + overtimeHours);
+        
+        return [
+            basicInfo.employeeName || '',           // Name
+            entry.zone || '',                       // Zone
+            entry.project || '',                    // Project
+            entry.productModule || '',              // Product Module
+            entry.activityType || '',               // Activity Type
+            entry.task || '',                       // Task
+            regularHours,                           // Regular Hours
+            overtimeHours,                          // OT Hours
+            totalHours,                             // TTL_Hours
+            entry.date || '',                       // Date
+            entry.startDate || '',                  // Start Date
+            entry.endDate || '',                    // End Date
+            entry.comments || '',                   // Comments
+            entry.pm || '',                         // PM
+            basicInfo.employeeType || ''            // InternalOrOutsource
+        ];
+    });
+
+    // 組合CSV內容
+    const csvRows = [headers, ...dataRows];
+    
+    // 轉換為CSV格式字串
+    return csvRows.map(row =>
+        row.map(field => {
+            // 處理包含逗號或換行的欄位
+            const fieldStr = String(field);
+            if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
+                return '"' + fieldStr.replace(/"/g, '""') + '"';
+            }
+            return fieldStr;
+        }).join(',')
+    ).join('\n');
+}
+
+// 下載CSV檔案
+export function downloadCSVFile(csvContent, filename) {
+    try {
+        console.log('[downloadCSVFile] 開始下載', { filename, csvContentSample: csvContent.slice(0, 100) });
+        // 添加BOM以支援中文
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        console.log('[downloadCSVFile] Blob created', blob);
+        const url = URL.createObjectURL(blob);
+        console.log('[downloadCSVFile] Object URL', url);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        // 添加到頁面並觸發下載
+        document.body.appendChild(link);
+        link.click();
+        console.log('[downloadCSVFile] link.click() 已觸發');
+        // 清理
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('[downloadCSVFile] 清理完成');
+    } catch (err) {
+        console.error('[downloadCSVFile] 發生錯誤', err);
+    }
+}
