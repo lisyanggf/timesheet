@@ -91,11 +91,14 @@ function performNormalizationForExport(entries) {
     });
 
     if (totalRegularHours > 40) {
-        const normalizedEntries = entries.map(entry => {
+        const ratio = 40 / totalRegularHours;
+        let normalizedSum = 0;
+        
+        const normalizedEntries = entries.map((entry) => {
             const originalHours = entry.regularHours || 0;
-            const ratio = 40 / totalRegularHours;
-            const newRegularHours = Math.round(originalHours * ratio * 100) / 100;
-            // 保存原始工時
+            let newRegularHours = Math.round(originalHours * ratio * 100) / 100;
+            normalizedSum += newRegularHours;
+            
             return {
                 ...entry,
                 _originalHours: originalHours,
@@ -104,6 +107,16 @@ function performNormalizationForExport(entries) {
                 ttlHours: newRegularHours + (entry.otHours || 0)
             };
         });
+        
+        // 修正四捨五入造成的誤差，將差額加到最後一筆記錄
+        const difference = 40 - normalizedSum;
+        if (difference !== 0 && normalizedEntries.length > 0) {
+            const lastEntry = normalizedEntries[normalizedEntries.length - 1];
+            lastEntry.regularHours = Math.round((lastEntry.regularHours + difference) * 100) / 100;
+            lastEntry.ttlHours = lastEntry.regularHours + (lastEntry.otHours || 0);
+            console.log(`正規化修正: 將差額 ${difference} 加到最後一筆記錄，確保總時數為40小時`);
+        }
+        
         return normalizedEntries;
     }
 
@@ -803,19 +816,27 @@ function updateLastWeekButtonDisplay() {
     const button = document.getElementById('btn-last-week');
     const container = document.getElementById('last-week-container');
     
+    console.log('updateLastWeekButtonDisplay called:', { button: !!button, container: !!container });
+    
     if (button && container) {
         // 檢查上週是否已存在
         const lastWeekKey = getLastWeekKey();
         const timesheets = loadAllTimesheets();
         
+        console.log('Checking last week:', { lastWeekKey, exists: !!timesheets[lastWeekKey], allWeeks: Object.keys(timesheets) });
+        
         if (timesheets[lastWeekKey]) {
             // 上週已存在，隱藏按鈕
+            console.log('Last week exists, hiding button');
             container.style.display = 'none';
         } else {
             // 上週不存在，顯示按鈕並設置文字
+            console.log('Last week does not exist, showing button');
             container.style.display = 'block';
             button.textContent = `建立上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
         }
+    } else {
+        console.log('Button or container not found');
     }
 }
 
