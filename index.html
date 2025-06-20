@@ -92,6 +92,48 @@
         </div>
     </div>
     
+    <!-- 複製選項模態框 -->
+    <div id="copy-options-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>選擇複製目標週次</h3>
+                <span class="close" onclick="closeCopyModal()">&times;</span>
+            </div>
+            <div class="week-options">
+                <div class="week-option" id="copy-option-current-week">
+                    <button class="option-button" id="copy-btn-current">
+                        <div class="option-title">本週</div>
+                        <div class="option-subtitle" id="copy-current-week-info">載入中...</div>
+                    </button>
+                </div>
+                <div class="week-option" id="copy-option-last-week">
+                    <button class="option-button" id="copy-btn-last">
+                        <div class="option-title">上週</div>
+                        <div class="option-subtitle" id="copy-last-week-info">載入中...</div>
+                    </button>
+                </div>
+                <div class="week-option" id="copy-option-custom">
+                    <button class="option-button" id="copy-btn-custom">
+                        <div class="option-title">自訂週次</div>
+                        <div class="option-subtitle">手動輸入週次格式</div>
+                    </button>
+                </div>
+            </div>
+            <div id="copy-custom-week-input" class="custom-input" style="display: none;">
+                <label for="copy-custom-week-field">週次格式（YYYY-Www）：</label>
+                <input type="text" id="copy-custom-week-field" placeholder="例如：2025-W25">
+                <div class="format-hint">格式說明：年份-W週數（例如：2025-W01 到 2025-W53）</div>
+                <div class="custom-actions">
+                    <button type="button" id="copy-btn-custom-confirm">確認複製</button>
+                    <button type="button" id="copy-btn-custom-cancel">取消</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="copy-btn-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="last-week-container" class="last-week-container">
         <button id="btn-last-week" class="btn-last-week">建立上週工時表</button>
     </div>

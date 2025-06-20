@@ -950,6 +950,117 @@ button:hover {
 #btn-cancel-week:hover {
     background-color: #7f8c8d;
 }
+
+/* 複製選項模態框特定樣式 */
+#copy-options-modal .week-option {
+    margin-bottom: 12px;
+}
+
+#copy-options-modal .option-button {
+    width: 100%;
+    background-color: #ffffff;
+    color: #2c3e50;
+    border: 2px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+#copy-options-modal .option-button:hover {
+    border-color: #3498db;
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+}
+
+#copy-options-modal .option-button .option-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+#copy-options-modal .option-button .option-subtitle {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin: 0;
+}
+
+/* 自訂週次輸入區域樣式 */
+#copy-custom-week-input {
+    margin-top: 16px;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    animation: slideIn 0.3s ease;
+}
+
+#copy-custom-week-input label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+#copy-custom-week-field {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s ease;
+}
+
+#copy-custom-week-field:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.custom-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.custom-actions button {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+#copy-btn-custom-confirm {
+    background-color: #27ae60;
+    color: white;
+}
+
+#copy-btn-custom-confirm:hover {
+    background-color: #219a52;
+}
+
+#copy-btn-custom-cancel {
+    background-color: #95a5a6;
+    color: white;
+}
+
+#copy-btn-custom-cancel:hover {
+    background-color: #7f8c8d;
+}
+
+#copy-btn-cancel {
+    background-color: #95a5a6;
+    color: white;
+}
+
+#copy-btn-cancel:hover {
+    background-color: #7f8c8d;
+}
 /* 成功訊息樣式 */
 .success-message {
     position: fixed;

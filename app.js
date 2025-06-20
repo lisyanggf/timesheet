@@ -76,6 +76,7 @@ function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
 }
 function showCopyOptionsModal(sourceWeekKey) {
     console.log('Inside showCopyOptionsModal function, sourceWeekKey:', sourceWeekKey);
+    
     // 計算當前週、上週、上上週
     const now = new Date();
     console.log('Current Date:', now);
@@ -93,47 +94,17 @@ function showCopyOptionsModal(sourceWeekKey) {
     }
     const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
     
-    console.log('Calculated week keys: currentWeekKey=', currentWeekKey, 'lastWeekKey=', lastWeekKey);
-    
-    // 建立選項
-    const options = [
-        { key: currentWeekKey, label: '本週 (' + currentWeekKey + ')' },
-        { key: lastWeekKey, label: '上週 (' + lastWeekKey + ')' },
-        { key: 'custom', label: '自己指定週次 (YYYY-WNN)' }
-    ];
-    console.log('Initial options:', options);
-    
-    // 建立選項文字
-    let optionText = '請選擇要複製到哪一週：\n\n';
-    options.forEach((option, index) => {
-        optionText += (index + 1) + '. ' + option.label + '\n';
-    });
-    optionText += '\n請輸入選項編號 (1-' + options.length + ')：';
-    
-    const choice = prompt(optionText);
-    const choiceIndex = parseInt(choice) - 1;
-    
-    let targetWeekKey;
-    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= options.length) {
-        alert('無效的選項。');
-        return;
+    // 計算上上週
+    let twoWeeksAgoNumber = lastWeekNumber - 1;
+    let twoWeeksAgoYear = lastWeekYear;
+    if (twoWeeksAgoNumber < 1) {
+        twoWeeksAgoYear = lastWeekYear - 1;
+        const lastDayOfPreviousYear = new Date(twoWeeksAgoYear, 11, 31);
+        twoWeeksAgoNumber = getWeekNumber(lastDayOfPreviousYear);
     }
+    const twoWeeksAgoKey = twoWeeksAgoYear + '-W' + twoWeeksAgoNumber.toString().padStart(2, '0');
     
-    if (options[choiceIndex].key === 'custom') {
-        let customWeekKey = prompt('請輸入目標週次 (格式: YYYY-WNN, 例如: 2025-W25):');
-        if (!customWeekKey) {
-            return; // 使用者取消輸入
-        }
-        customWeekKey = customWeekKey.toUpperCase();
-        const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
-        if (!weekKeyPattern.test(customWeekKey)) {
-            alert('無效的週次格式。請使用 YYYY-WNN 格式。');
-            return;
-        }
-        targetWeekKey = customWeekKey;
-    } else {
-        targetWeekKey = availableOptions[choiceIndex].key;
-    }
+    console.log('Calculated week keys: currentWeekKey=', currentWeekKey, 'lastWeekKey=', lastWeekKey, 'twoWeeksAgoKey=', twoWeeksAgoKey);
     
     // 取得來源週的工時記錄數量
     const timesheets = loadAllTimesheets();
@@ -150,6 +121,80 @@ function showCopyOptionsModal(sourceWeekKey) {
         return;
     }
     
+    // 判斷來源週相對於現在的時間描述
+    let sourceDescription;
+    if (sourceWeekKey === currentWeekKey) {
+        sourceDescription = '本週工時表';
+    } else if (sourceWeekKey === lastWeekKey) {
+        sourceDescription = '上週工時表';
+    } else if (sourceWeekKey === twoWeeksAgoKey) {
+        sourceDescription = '上上週工時表';
+    } else {
+        // 顯示週數和起迄日期
+        const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+        const sourceStartDate = sourceWeekRange.start.toISOString().split('T')[0];
+        const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
+        sourceDescription = `${sourceWeekKey} 工時表 (${sourceStartDate} ~ ${sourceEndDate})`;
+    }
+    
+    // 更新模態視窗標題以包含來源週資訊
+    document.querySelector('#copy-options-modal .modal-header h3').textContent =
+        `複製 ${sourceDescription} 到哪一週？`;
+    
+    // 更新模態視窗中的目標週次資訊
+    const currentWeekRange = getWeekDateRangeFromKey(currentWeekKey);
+    const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
+    
+    document.getElementById('copy-current-week-info').textContent =
+        `${currentWeekKey} (${currentWeekRange.start.toISOString().split('T')[0]} ~ ${currentWeekRange.end.toISOString().split('T')[0]})`;
+    document.getElementById('copy-last-week-info').textContent =
+        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
+    
+    // 顯示模態視窗
+    document.getElementById('copy-options-modal').style.display = 'block';
+    
+    // 綁定按鈕事件
+    document.getElementById('copy-btn-current').onclick = function() {
+        handleCopySelection(sourceWeekKey, currentWeekKey);
+    };
+    
+    document.getElementById('copy-btn-last').onclick = function() {
+        handleCopySelection(sourceWeekKey, lastWeekKey);
+    };
+    
+    document.getElementById('copy-btn-custom').onclick = function() {
+        document.getElementById('copy-custom-week-input').style.display = 'block';
+        document.getElementById('copy-custom-week-field').focus();
+    };
+    
+    document.getElementById('copy-btn-custom-confirm').onclick = function() {
+        const customWeekKey = document.getElementById('copy-custom-week-field').value.trim().toUpperCase();
+        if (!customWeekKey) {
+            alert('請輸入週次。');
+            return;
+        }
+        
+        const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+        if (!weekKeyPattern.test(customWeekKey)) {
+            alert('無效的週次格式。請使用 YYYY-WNN 格式。');
+            return;
+        }
+        
+        handleCopySelection(sourceWeekKey, customWeekKey);
+    };
+    
+    document.getElementById('copy-btn-custom-cancel').onclick = function() {
+        document.getElementById('copy-custom-week-input').style.display = 'none';
+        document.getElementById('copy-custom-week-field').value = '';
+    };
+    
+    document.getElementById('copy-btn-cancel').onclick = function() {
+        closeCopyModal();
+    };
+}
+
+// 處理複製選擇的函數
+function handleCopySelection(sourceWeekKey, targetWeekKey) {
     // 顯示確認對話框
     const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
     const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
@@ -157,6 +202,16 @@ function showCopyOptionsModal(sourceWeekKey) {
     const sourceEndDate = sourceWeekRange.end.toISOString().split('T')[0];
     const targetStartDate = targetWeekRange.start.toISOString().split('T')[0];
     const targetEndDate = targetWeekRange.end.toISOString().split('T')[0];
+    
+    // 取得來源週的工時記錄數量
+    const timesheets = loadAllTimesheets();
+    let sourceEntries = [];
+    const sourceWeekData = timesheets[sourceWeekKey];
+    if (Array.isArray(sourceWeekData)) {
+        sourceEntries = sourceWeekData;
+    } else if (sourceWeekData && sourceWeekData.entries) {
+        sourceEntries = sourceWeekData.entries;
+    }
     
     const confirmMessage = `確認要複製工時記錄嗎？\n\n` +
                           `來源週：${sourceWeekKey}\n` +
@@ -168,7 +223,15 @@ function showCopyOptionsModal(sourceWeekKey) {
     
     if (confirm(confirmMessage)) {
         copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
+        closeCopyModal();
     }
+}
+
+// 關閉複製模態視窗的函數
+function closeCopyModal() {
+    document.getElementById('copy-options-modal').style.display = 'none';
+    document.getElementById('copy-custom-week-input').style.display = 'none';
+    document.getElementById('copy-custom-week-field').value = '';
 }
 // 改進的 CSV 解析 function，支援引號包圍的欄位，回傳 array of objects
 function parseCSV(text) {
