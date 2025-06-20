@@ -289,47 +289,28 @@ function parseCSV(text) {
                 headers.forEach((h, i) => {
                     const value = values[i] || '';
                     
-                    // 欄位名稱對應表，將CSV欄位名稱轉換為系統內部標準欄位名稱
-                    const fieldMapping = {
-                        'Date': 'date',
-                        'Day': 'date',
-                        '日期': 'date',
-                        'Zone': 'zone',
-                        '區域': 'zone',
-                        'Activity Type': 'activityType',
-                        '活動類型': 'activityType',
-                        'Task': 'task',
-                        '任務': 'task',
-                        'Regular Hours': 'regularHours',
-                        '正常工時': 'regularHours',
-                        'OT Hours': 'otHours',
-                        '加班工時': 'otHours',
-                        'TTL_Hours': 'ttlHours',
-                        'Total Hours': 'ttlHours',
-                        '總工時': 'ttlHours',
-                        'Project': 'project',
-                        '專案': 'project',
-                        'Product Module': 'productModule',
-                        '產品模組': 'productModule',
-                        'PM': 'pm',
-                        '專案經理': 'pm',
-                        'Comments': 'comments',
-                        '備註': 'comments',
-                        'Employee Name': 'employeeName',
-                        '員工姓名': 'employeeName',
-                        'Employee Type': 'employeeType',
-                        '員工類型': 'employeeType'
-                    };
+                    // 對於CSV檔案，我們保持原始欄位名稱不變，不做轉換
+                    // 這樣可以確保projectcode.csv和productcode.csv中的Zone、Project等欄位能正確使用
                     
-                    // 取得標準化的欄位名稱
-                    const standardFieldName = fieldMapping[h] || h.toLowerCase().replace(/\s+/g, '');
+                    // 數值欄位處理
+                    const numericFields = ['Regular Hours', 'OT Hours', 'TTL_Hours', 'Total Hours', '正常工時', '加班工時', '總工時'];
+                    const isNumericField = numericFields.includes(h);
                     
-                    // 處理數字欄位
-                    if (standardFieldName === 'regularHours' || standardFieldName === 'otHours' || standardFieldName === 'ttlHours') {
-                        obj[standardFieldName] = parseFloat(value) || 0;
+                    if (isNumericField) {
+                        obj[h] = parseFloat(value) || 0;
                     } else {
-                        obj[standardFieldName] = value;
+                        obj[h] = value;
                     }
+                    
+                    // 為了相容性，也建立一些常用的標準化欄位名稱
+                    if (h === 'Regular Hours' || h === '正常工時') {
+                        obj['regularHours'] = parseFloat(value) || 0;
+                    } else if (h === 'OT Hours' || h === '加班工時') {
+                        obj['otHours'] = parseFloat(value) || 0;
+                    } else if (h === 'TTL_Hours' || h === 'Total Hours' || h === '總工時') {
+                        obj['ttlHours'] = parseFloat(value) || 0;
+                    }
+                    
                 });
                 
                 return obj;
