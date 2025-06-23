@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.8 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.0 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -551,16 +551,44 @@ function deleteTimesheet(weekKey) {
 }
 
 // 匯出工時表
-function exportTimesheet(weekKey) {
+async function exportTimesheet(weekKey) {
     const entries = getWeekEntries(weekKey);
     if (entries.length === 0) {
         alert('該週沒有工時記錄可以匯出');
         return;
     }
     
-    const csvContent = generateCSVContent(entries);
+    // 檢查是否需要正規化
+    const totalRegularHours = entries.reduce((sum, entry) => {
+        const hours = parseFloat(entry.regularHours) || 0;
+        return sum + hours;
+    }, 0);
+    
+    let shouldNormalize = false;
+    
+    if (totalRegularHours > 40) {
+        const message = `此週正常工時總計 ${totalRegularHours} 小時，超過40小時。\n\n` +
+                       `是否要進行正規化處理？\n` +
+                       `• 確定：將正常工時調整為40小時，超出部分轉為加班工時\n` +
+                       `• 取消：按原始工時匯出`;
+        
+        shouldNormalize = confirm(message);
+    }
+    
+    const csvContent = generateCSVContent(entries, shouldNormalize);
     const filename = 'timesheet_' + weekKey + '.csv';
     downloadCSVFile(csvContent, filename);
+    
+    // 顯示匯出結果訊息
+    if (totalRegularHours > 40) {
+        if (shouldNormalize) {
+            showSuccessMessage(`已匯出並正規化 ${weekKey} 工時表（正常工時調整為40小時）`);
+        } else {
+            showSuccessMessage(`已匯出 ${weekKey} 工時表（按原始工時：${totalRegularHours}小時）`);
+        }
+    } else {
+        showSuccessMessage(`已匯出 ${weekKey} 工時表`);
+    }
 }
 
 // 顯示成功訊息
@@ -861,7 +889,7 @@ function parseCSV(text) {
 }
 
 // 生成CSV內容
-function generateCSVContent(entries) {
+function generateCSVContent(entries, shouldNormalize = false) {
     const headers = [
         'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
         'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
@@ -870,7 +898,10 @@ function generateCSVContent(entries) {
 
     const basicInfo = loadGlobalBasicInfo() || {};
     
-    const dataRows = entries.map(entry => [
+    // 只有在用戶選擇時才進行正規化
+    const finalEntries = shouldNormalize ? normalizeWorkHours(entries) : entries;
+    
+    const dataRows = finalEntries.map(entry => [
         basicInfo.employeeName || '',
         entry.zone || '',
         entry.project || '',
@@ -898,6 +929,64 @@ function generateCSVContent(entries) {
             return fieldStr;
         }).join(',')
     ).join('\n');
+}
+
+// 正規化工時：如果正常工時超過40小時，按比例分攤到各項目
+function normalizeWorkHours(entries) {
+    // 計算總正常工時
+    const totalRegularHours = entries.reduce((sum, entry) => {
+        const hours = parseFloat(entry.regularHours) || 0;
+        return sum + hours;
+    }, 0);
+    
+    console.log(`Total regular hours before normalization: ${totalRegularHours}`);
+    
+    // 如果總正常工時不超過40小時，不需要正規化
+    if (totalRegularHours <= 40) {
+        console.log('No normalization needed (≤40 hours)');
+        return entries.map(entry => ({ ...entry })); // 回傳複本
+    }
+    
+    // 需要正規化：按比例分攤
+    console.log('Normalizing work hours (>40 hours)');
+    const normalizationRatio = 40 / totalRegularHours;
+    const excessHours = totalRegularHours - 40;
+    
+    const normalizedEntries = entries.map(entry => {
+        const originalRegularHours = parseFloat(entry.regularHours) || 0;
+        const originalOtHours = parseFloat(entry.otHours) || 0;
+        
+        if (originalRegularHours === 0) {
+            // 如果原本正常工時為0，不需要調整
+            return { ...entry };
+        }
+        
+        // 計算正規化後的正常工時
+        const normalizedRegularHours = Math.round((originalRegularHours * normalizationRatio) * 100) / 100;
+        
+        // 計算需要轉為加班的工時
+        const hoursBecomeOT = originalRegularHours - normalizedRegularHours;
+        
+        // 更新加班工時
+        const newOtHours = originalOtHours + hoursBecomeOT;
+        const newTotalHours = normalizedRegularHours + newOtHours;
+        
+        console.log(`Entry normalization: ${originalRegularHours}h regular -> ${normalizedRegularHours}h regular + ${hoursBecomeOT}h to OT`);
+        
+        return {
+            ...entry,
+            regularHours: normalizedRegularHours,
+            otHours: Math.round(newOtHours * 100) / 100,
+            ttlHours: Math.round(newTotalHours * 100) / 100,
+            originalHours: originalRegularHours // 保存原始工時供參考
+        };
+    });
+    
+    // 驗證正規化結果
+    const normalizedTotal = normalizedEntries.reduce((sum, entry) => sum + (parseFloat(entry.regularHours) || 0), 0);
+    console.log(`Total regular hours after normalization: ${Math.round(normalizedTotal * 100) / 100} (should be ≤40)`);
+    
+    return normalizedEntries;
 }
 
 // 下載CSV檔案
@@ -1541,7 +1630,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.8 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.12.0 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
