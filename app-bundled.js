@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.10.6 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.10.7 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -851,21 +851,36 @@ function copyEntry(entryId) {
 
 // 刪除單個記錄
 function deleteEntry(entryId) {
+    console.log('deleteEntry called with entryId:', entryId);
+    
     if (confirm('確定要刪除這筆記錄嗎？')) {
         const params = new URLSearchParams(window.location.search);
         const weekKey = params.get('week');
-        if (!weekKey) return;
+        console.log('weekKey:', weekKey);
+        
+        if (!weekKey) {
+            console.error('No weekKey found');
+            return;
+        }
         
         const timesheets = loadAllTimesheets();
         const entries = timesheets[weekKey] || [];
-        const updatedEntries = entries.filter(e => e.id != entryId);
+        console.log('Before delete - entries count:', entries.length);
+        console.log('Looking for entryId:', entryId, 'Type:', typeof entryId);
+        
+        // Use strict comparison and handle both string and number IDs
+        const updatedEntries = entries.filter(e => {
+            console.log('Entry ID:', e.id, 'Type:', typeof e.id, 'Match:', e.id === entryId || e.id == entryId);
+            return e.id !== entryId && e.id != entryId;
+        });
+        
+        console.log('After delete - entries count:', updatedEntries.length);
         
         timesheets[weekKey] = updatedEntries;
         saveAllTimesheets(timesheets);
         
-        if (typeof renderEntriesTable === 'function') {
-            renderEntriesTable();
-        }
+        // Re-render the table
+        renderEntriesTable();
         showSuccessMessage('記錄已刪除');
     }
 }
@@ -963,19 +978,32 @@ function setupTableEventDelegation() {
 // 處理表格按鈕點擊事件
 function handleTableButtonClick(event) {
     const target = event.target;
-    if (!target.matches('button')) return;
+    console.log('Table button click detected:', target);
+    
+    if (!target.matches('button')) {
+        console.log('Not a button, ignoring');
+        return;
+    }
     
     const entryId = target.getAttribute('data-entry-id');
-    if (!entryId) return;
+    console.log('Button clicked - Class:', target.className, 'entryId:', entryId);
     
-    console.log('Button clicked:', target.className, 'entryId:', entryId);
+    if (!entryId) {
+        console.error('No entryId found on button');
+        return;
+    }
     
     if (target.classList.contains('btn-edit-entry')) {
+        console.log('Calling editEntry');
         editEntry(entryId);
     } else if (target.classList.contains('btn-copy-entry')) {
+        console.log('Calling copyEntry');
         copyEntry(entryId);
     } else if (target.classList.contains('btn-delete-entry')) {
+        console.log('Calling deleteEntry');
         deleteEntry(entryId);
+    } else {
+        console.log('Unknown button type');
     }
 }
 
@@ -994,7 +1022,7 @@ window.handleTableButtonClick = handleTableButtonClick;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.10.6 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.10.7 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
