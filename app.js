@@ -7,6 +7,7 @@ import {
     closeCopyModal
 } from './modules/uiModule.js';
 
+console.log('App.js initialized and running.');
 // 設置日期欄位的限制範圍
 function setDateFieldLimits(startDate, endDate) {
     const minDate = formatDate(startDate);
