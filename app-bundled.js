@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.4 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.9 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -595,11 +595,10 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.8 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.9 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded - setting up complete event listeners');
     
     // 檢查是否為首頁
     console.log('Current pathname:', window.location.pathname);
@@ -744,19 +743,118 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('❌ Not on homepage, skipping button setup');
         console.log('Current URL:', window.location.href);
         
-        // Fallback: try to set up buttons anyway for GitHub Pages
-        console.log('🔄 Trying fallback button setup...');
+        // Fallback: Set up everything for GitHub Pages
+        console.log('🔄 Setting up fallback with full functionality...');
+        
+        // Render cards first
+        renderTimesheetCards();
+        
+        // Set up all main buttons
         const basicInfoBtn = document.getElementById('btn-basic-info');
         if (basicInfoBtn) {
-            console.log('✅ Fallback: Found basic info button');
             basicInfoBtn.addEventListener('click', function() {
-                console.log('Fallback: Basic info clicked!');
                 showBasicInfoModal();
             });
-        } else {
-            console.log('❌ Fallback: Basic info button not found');
+        }
+        
+        const newBtn = document.getElementById('btn-new');
+        if (newBtn) {
+            newBtn.addEventListener('click', function() {
+                newTimesheet();
+            });
+        }
+        
+        const importBtn = document.getElementById('btn-import');
+        if (importBtn) {
+            importBtn.addEventListener('click', function() {
+                importTimesheet();
+            });
+        }
+        
+        const clearBtn = document.getElementById('btn-clear-storage');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (confirm('確定要清空所有資料嗎？此操作無法還原。')) {
+                    localStorage.clear();
+                    renderTimesheetCards();
+                    showSuccessMessage('資料已清空');
+                }
+            });
+        }
+        
+        // Set up modal buttons
+        const saveModalBtn = document.getElementById('btn-save-modal-basic-info');
+        if (saveModalBtn) {
+            saveModalBtn.addEventListener('click', saveModalBasicInfo);
+        }
+        
+        const cancelModalBtn = document.getElementById('btn-cancel-modal');
+        if (cancelModalBtn) {
+            cancelModalBtn.addEventListener('click', hideBasicInfoModal);
+        }
+        
+        const closeBtn = document.querySelector('#basic-info-modal .close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', hideBasicInfoModal);
+        }
+        
+        // Set up week selection modal
+        const confirmWeekBtn = document.getElementById('btn-confirm-week');
+        if (confirmWeekBtn) {
+            confirmWeekBtn.addEventListener('click', confirmWeekSelection);
+        }
+        
+        const cancelWeekBtn = document.getElementById('btn-cancel-week');
+        if (cancelWeekBtn) {
+            cancelWeekBtn.addEventListener('click', hideWeekSelectionModal);
+        }
+        
+        const customRadio = document.getElementById('radio-custom');
+        const customInput = document.getElementById('custom-week-input');
+        if (customRadio && customInput) {
+            customRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    customInput.style.display = 'block';
+                }
+            });
+        }
+        
+        // Set up last week button
+        const lastWeekButton = document.getElementById('btn-last-week');
+        if (lastWeekButton) {
+            lastWeekButton.addEventListener('click', function() {
+                createLastWeekTimesheet();
+            });
+        }
+        
+        // Set up file input
+        const fileInput = document.getElementById('import-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const csvData = parseCSV(e.target.result);
+                            if (csvData.length > 0) {
+                                // 簡化匯入：將所有資料放到當前週
+                                const currentWeek = getThisWeekKey();
+                                const timesheets = loadAllTimesheets();
+                                timesheets[currentWeek] = csvData;
+                                saveAllTimesheets(timesheets);
+                                renderTimesheetCards();
+                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${currentWeek}`);
+                            }
+                        } catch (error) {
+                            alert('CSV 檔案格式錯誤');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+                e.target.value = '';
+            });
         }
     }
 });
 
-console.log('✅ Complete bundled app.js loaded successfully');
