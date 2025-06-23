@@ -591,6 +591,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded - setting up complete event listeners');
     
     // 檢查是否為首頁
+    console.log('Current pathname:', window.location.pathname);
+    console.log('Is homepage check:', window.location.pathname === '/' || window.location.pathname.includes('index.html'));
     if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
         // 渲染卡片
         renderTimesheetCards();
@@ -727,6 +729,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         console.log('✅ All event listeners set up successfully');
+    } else {
+        console.log('❌ Not on homepage, skipping button setup');
+        console.log('Current URL:', window.location.href);
+        
+        // Fallback: try to set up buttons anyway for GitHub Pages
+        console.log('🔄 Trying fallback button setup...');
+        const basicInfoBtn = document.getElementById('btn-basic-info');
+        if (basicInfoBtn) {
+            console.log('✅ Fallback: Found basic info button');
+            basicInfoBtn.addEventListener('click', function() {
+                console.log('Fallback: Basic info clicked!');
+                showBasicInfoModal();
+            });
+        } else {
+            console.log('❌ Fallback: Basic info button not found');
+        }
     }
 });
 
