@@ -142,6 +142,24 @@
         <!-- 卡片將由JavaScript動態生成 -->
     </main>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module">
+        console.log('Module loading test - Version 2.1');
+        console.log('Current URL:', window.location.href);
+        console.log('Current origin:', window.location.origin);
+        console.log('Current pathname:', window.location.pathname);
+        
+        try {
+            console.log('Attempting to import app.js...');
+            import('./app.js').then(() => {
+                console.log('✅ app.js loaded successfully');
+            }).catch(error => {
+                console.error('❌ Failed to load app.js:', error);
+                console.error('Error details:', error.message);
+                console.error('Error stack:', error.stack);
+            });
+        } catch (error) {
+            console.error('❌ Import syntax error:', error);
+        }
+    </script>
 </body>
 </html>
