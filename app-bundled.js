@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.10.7 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.0 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -124,8 +124,13 @@ function extractBasicInfoFromCSV(csvData) {
     if (csvData.length === 0) return null;
     
     const firstEntry = csvData[0];
-    const employeeName = firstEntry.name || firstEntry.Name || '';
-    const employeeType = firstEntry.employeeType || firstEntry.InternalOrOutsource || '';
+    console.log('Extracting basic info from first entry:', firstEntry);
+    
+    // Try different field name variations
+    const employeeName = firstEntry.Name || firstEntry.name || firstEntry['Employee Name'] || firstEntry.employeeName || '';
+    const employeeType = firstEntry.InternalOrOutsource || firstEntry.employeeType || firstEntry['Internal/Outsource'] || firstEntry['Employee Type'] || '';
+    
+    console.log('Extracted basic info:', { employeeName, employeeType });
     
     return {
         employeeName: employeeName.trim(),
@@ -630,19 +635,33 @@ function createLastWeekTimesheet() {
 
 // 簡化的 CSV 解析
 function parseCSV(text) {
+    console.log('Raw CSV text length:', text.length);
+    console.log('First 200 chars:', text.substring(0, 200));
+    
     // Remove BOM if present
     text = text.replace(/^\uFEFF/, '');
+    console.log('After BOM removal, first 200 chars:', text.substring(0, 200));
     
     const lines = text.trim().split(/\r?\n/);
+    console.log('Total lines:', lines.length);
+    
     if (lines.length < 2) return [];
     
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    return lines.slice(1).map(line => {
+    console.log('Headers found:', headers);
+    
+    return lines.slice(1).map((line, index) => {
+        console.log(`Processing line ${index + 1}:`, line);
+        
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        console.log('Values extracted:', values);
+        
         const obj = {};
         headers.forEach((h, i) => {
             obj[h] = values[i] || '';
         });
+        
+        console.log('Initial object after header mapping:', obj);
         
         // Convert date format from YYYY/M/D to YYYY-MM-DD
         if (obj.Date && obj.Date.includes('/')) {
@@ -651,7 +670,10 @@ function parseCSV(text) {
                 const year = parts[0];
                 const month = parts[1].padStart(2, '0');
                 const day = parts[2].padStart(2, '0');
-                obj.Date = `${year}-${month}-${day}`;
+                const newDate = `${year}-${month}-${day}`;
+                console.log(`Date conversion: ${obj.Date} -> ${newDate}`);
+                obj.Date = newDate;
+                obj.date = newDate; // Also set the internal field
             }
         }
         
@@ -674,22 +696,27 @@ function parseCSV(text) {
             'InternalOrOutsource': 'employeeType'
         };
         
+        console.log('Applying field mappings...');
         // Apply field mappings
         Object.keys(fieldMapping).forEach(csvField => {
             if (obj[csvField] !== undefined) {
                 const internalField = fieldMapping[csvField];
+                const originalValue = obj[csvField];
+                
                 if (csvField.includes('Hours')) {
-                    obj[internalField] = parseFloat(obj[csvField]) || 0;
+                    obj[internalField] = parseFloat(originalValue) || 0;
                 } else {
-                    // For non-hour fields, even empty strings should be mapped
-                    obj[internalField] = obj[csvField] || '';
+                    // For non-hour fields, preserve the value
+                    obj[internalField] = originalValue;
                 }
+                
+                console.log(`Field mapping: ${csvField} (${originalValue}) -> ${internalField} (${obj[internalField]})`);
+            } else {
+                console.log(`Field ${csvField} not found in CSV data`);
             }
         });
         
-        // Debug: log the mapping result
-        console.log('CSV parsing result:', obj);
-        
+        console.log('Final parsed object:', obj);
         return obj;
     });
 }
@@ -813,6 +840,111 @@ function closeCopyModal() {
     // 簡化版本
 }
 
+// ==================== CSV 載入功能 ====================
+
+// CSV 載入函數（用於編輯頁面的下拉選單）
+async function fetchCSV(path) {
+    try {
+        const res = await fetch(path);
+        const text = await res.text();
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        return lines.slice(1).map(line => {
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            const obj = {};
+            headers.forEach((h, i) => obj[h] = cols[i] || '');
+            return obj;
+        });
+    } catch (error) {
+        console.error('Error fetching CSV:', path, error);
+        return [];
+    }
+}
+
+// 初始化項目和產品選單
+async function initProjectAndProductSelect(projectValue, productValue) {
+    console.log('initProjectAndProductSelect called with:', projectValue, productValue);
+    
+    const selectedZone = document.getElementById('zone')?.value;
+    console.log('Selected zone:', selectedZone);
+    
+    // 專案名稱（根據Zone過濾）
+    let projectList = [];
+    if (selectedZone) {
+        const allProjects = await fetchCSV('projectcode.csv');
+        console.log('All projects loaded:', allProjects.length);
+        projectList = allProjects.filter(p => p.Zone === selectedZone);
+        console.log('Filtered projects for zone', selectedZone, ':', projectList);
+    } else {
+        projectList = await fetchCSV('projectcode.csv');
+    }
+    
+    const projectSelect = document.getElementById('project');
+    if (projectSelect) {
+        if (selectedZone) {
+            projectSelect.innerHTML = '<option value="">請選擇專案</option>' +
+                projectList.map(p => `<option value="${p.Project}">${p.Project}</option>`).join('');
+            projectSelect.disabled = false;
+        } else {
+            projectSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            projectSelect.disabled = true;
+        }
+        if (projectValue && projectList.some(p => p.Project === projectValue)) {
+            projectSelect.value = projectValue;
+        }
+    }
+    
+    // 產品模組（根據Zone過濾）
+    let productList = [];
+    if (selectedZone) {
+        const allProducts = await fetchCSV('productcode.csv');
+        console.log('All products loaded:', allProducts.length);
+        productList = allProducts.filter(p => p.Zone === selectedZone);
+        console.log('Filtered products for zone', selectedZone, ':', productList);
+    } else {
+        productList = await fetchCSV('productcode.csv');
+    }
+    
+    const productSelect = document.getElementById('productModule');
+    if (productSelect) {
+        if (selectedZone) {
+            productSelect.innerHTML = '<option value="">請選擇產品模組</option>' +
+                productList.map(p => `<option value="${p['Product Module']}">${p['Product Module']}</option>`).join('');
+            productSelect.disabled = false;
+        } else {
+            productSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            productSelect.disabled = true;
+        }
+        if (productValue && productList.some(p => p['Product Module'] === productValue)) {
+            productSelect.value = productValue;
+        }
+    }
+    
+    // 更新PM欄位
+    updatePMField();
+}
+
+// 更新PM欄位函數
+async function updatePMField() {
+    const selectedProject = document.getElementById('project')?.value;
+    const pmField = document.getElementById('pm');
+    
+    console.log('updatePMField called, selectedProject:', selectedProject);
+    
+    if (selectedProject && pmField) {
+        const projectList = await fetchCSV('projectcode.csv');
+        const project = projectList.find(p => p.Project === selectedProject);
+        console.log('Found project:', project);
+        if (project && project.PM) {
+            pmField.value = project.PM;
+            console.log('PM field updated to:', project.PM);
+        } else {
+            pmField.value = '';
+            console.log('PM field cleared (no PM found)');
+        }
+    }
+}
+
 // ==================== 編輯頁面功能 ====================
 
 // 編輯單個記錄
@@ -898,6 +1030,125 @@ function fillForm(entry) {
             element.value = entry[field];
         }
     });
+    
+    // 触发Zone变更以更新项目和产品选单
+    if (entry.zone && window.initProjectAndProductSelect) {
+        setTimeout(() => {
+            window.initProjectAndProductSelect(entry.project, entry.productModule);
+        }, 100);
+    }
+}
+
+// 保存記錄
+function saveEntry() {
+    console.log('saveEntry called');
+    
+    const params = new URLSearchParams(window.location.search);
+    const weekKey = params.get('week');
+    if (!weekKey) {
+        alert('無法取得週次資訊');
+        return;
+    }
+    
+    // 取得表單資料
+    const formData = getFormData();
+    if (!formData) {
+        return; // 驗證失敗
+    }
+    
+    const timesheets = loadAllTimesheets();
+    const entries = timesheets[weekKey] || [];
+    const entryId = document.getElementById('entryId').value;
+    
+    if (entryId) {
+        // 編輯現有記錄
+        const index = entries.findIndex(e => e.id == entryId);
+        if (index !== -1) {
+            entries[index] = { ...formData, id: entryId };
+            console.log('Updated existing entry:', entries[index]);
+        }
+    } else {
+        // 新增記錄
+        const newEntry = { ...formData, id: Date.now().toString() };
+        entries.push(newEntry);
+        console.log('Added new entry:', newEntry);
+    }
+    
+    timesheets[weekKey] = entries;
+    saveAllTimesheets(timesheets);
+    
+    // 重新渲染表格
+    renderEntriesTable();
+    
+    // 清空表單
+    clearForm();
+    
+    showSuccessMessage('記錄已儲存');
+}
+
+// 取得表單資料
+function getFormData() {
+    const form = document.getElementById('timesheet-form');
+    if (!form) return null;
+    
+    // 基本驗證
+    const requiredFields = ['task', 'activityType', 'zone', 'project', 'productModule', 'regularHours', 'date'];
+    for (const field of requiredFields) {
+        const element = document.getElementById(field);
+        if (!element || !element.value.trim()) {
+            alert(`請填寫 ${element?.labels[0]?.textContent || field}`);
+            element?.focus();
+            return null;
+        }
+    }
+    
+    // 收集數據
+    const regularHours = parseFloat(document.getElementById('regularHours').value) || 0;
+    const otHours = parseFloat(document.getElementById('otHours').value) || 0;
+    const ttlHours = regularHours + otHours;
+    
+    // 更新總工時顯示
+    const ttlElement = document.getElementById('ttlHours');
+    if (ttlElement) {
+        ttlElement.value = ttlHours;
+    }
+    
+    return {
+        task: document.getElementById('task').value.trim(),
+        activityType: document.getElementById('activityType').value,
+        zone: document.getElementById('zone').value,
+        project: document.getElementById('project').value,
+        productModule: document.getElementById('productModule').value,
+        pm: document.getElementById('pm').value.trim(),
+        regularHours: regularHours,
+        otHours: otHours,
+        ttlHours: ttlHours,
+        date: document.getElementById('date').value,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        comments: document.getElementById('comments').value.trim()
+    };
+}
+
+// 清空表單
+function clearForm() {
+    const form = document.getElementById('timesheet-form');
+    if (form) {
+        form.reset();
+        document.getElementById('entryId').value = '';
+        
+        // 重置下拉選單
+        const projectSelect = document.getElementById('project');
+        const productSelect = document.getElementById('productModule');
+        if (projectSelect) {
+            projectSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            projectSelect.disabled = true;
+        }
+        if (productSelect) {
+            productSelect.innerHTML = '<option value="">點擊選擇區域</option>';
+            productSelect.disabled = true;
+        }
+    }
 }
 
 // 渲染記錄表格
@@ -1019,10 +1270,13 @@ window.deleteEntry = deleteEntry;
 window.renderEntriesTable = renderEntriesTable;
 window.setupTableEventDelegation = setupTableEventDelegation;
 window.handleTableButtonClick = handleTableButtonClick;
+window.fetchCSV = fetchCSV;
+window.initProjectAndProductSelect = initProjectAndProductSelect;
+window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.10.7 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.0 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1034,6 +1288,96 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof renderEntriesTable === 'function') {
             renderEntriesTable();
         }
+        
+        // 添加編輯頁面事件支持
+        setTimeout(() => {
+            // Zone變更事件
+            const zoneSelect = document.getElementById('zone');
+            if (zoneSelect) {
+                console.log('Zone select found, adding event listener');
+                zoneSelect.addEventListener('change', function() {
+                    console.log('Zone changed to:', this.value);
+                    // 触发项目和产品选单更新
+                    if (window.initProjectAndProductSelect) {
+                        console.log('Calling initProjectAndProductSelect after zone change');
+                        window.initProjectAndProductSelect();
+                    } else if (typeof handleZoneChange === 'function') {
+                        console.log('Calling handleZoneChange');
+                        handleZoneChange();
+                    } else {
+                        console.log('No zone change handler found');
+                    }
+                });
+            } else {
+                console.log('Zone select not found');
+            }
+            
+            // 項目變更事件
+            const projectSelect = document.getElementById('project');
+            if (projectSelect) {
+                console.log('Project select found, adding event listener');
+                projectSelect.addEventListener('change', function() {
+                    console.log('Project changed to:', this.value);
+                    if (window.updatePMField) {
+                        window.updatePMField();
+                    }
+                });
+            }
+            
+            // 工時計算事件
+            const regularHoursInput = document.getElementById('regularHours');
+            const otHoursInput = document.getElementById('otHours');
+            const ttlHoursInput = document.getElementById('ttlHours');
+            
+            function calculateTotalHours() {
+                const regular = parseFloat(regularHoursInput?.value) || 0;
+                const ot = parseFloat(otHoursInput?.value) || 0;
+                const total = regular + ot;
+                if (ttlHoursInput) {
+                    ttlHoursInput.value = total;
+                }
+            }
+            
+            if (regularHoursInput) {
+                regularHoursInput.addEventListener('input', calculateTotalHours);
+            }
+            if (otHoursInput) {
+                otHoursInput.addEventListener('input', calculateTotalHours);
+            }
+            
+            // 保存按鈕事件
+            const saveBtn = document.getElementById('btn-save-entry');
+            if (saveBtn) {
+                console.log('Save button found, adding event listener');
+                saveBtn.addEventListener('click', function() {
+                    console.log('Save button clicked');
+                    saveEntry();
+                });
+            } else {
+                console.log('Save button not found');
+            }
+            
+            // 清空表單按鈕事件
+            const clearBtn = document.getElementById('btn-clear-form');
+            if (clearBtn) {
+                console.log('Clear form button found, adding event listener');
+                clearBtn.addEventListener('click', function() {
+                    console.log('Clear form button clicked');
+                    clearForm();
+                });
+            }
+            
+            // 取消按鈕事件
+            const cancelBtn = document.getElementById('btn-cancel-entry');
+            if (cancelBtn) {
+                console.log('Cancel button found, adding event listener');
+                cancelBtn.addEventListener('click', function() {
+                    console.log('Cancel button clicked');
+                    clearForm();
+                });
+            }
+        }, 500);
+        
         return;
     }
     
