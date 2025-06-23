@@ -1,7 +1,6 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
 // Version 2.4 - Complete functionality without ES6 modules for GitHub Pages
 
-console.log('App complete bundled version 2.8.1 loading - CSP safe...');
 
 // ==================== localStorage 與資料存取 ====================
 
