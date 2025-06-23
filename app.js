@@ -1,11 +1,11 @@
-import { loadAllTimesheets, saveAllTimesheets, loadGlobalBasicInfo, saveGlobalBasicInfo, getWeekEntries, saveWeekEntries } from './modules/storageModule.js';
-import { loadAllCSVData, generateCSVContent, downloadCSVFile, parseCSV } from './modules/csvModule.js';
-import { getWeekNumber, getWeekDateRangeFromKey, formatDate, getWeekDateRange, getLastWeekKey, getThisWeekKey } from './modules/dateModule.js';
+import { loadAllTimesheets, saveAllTimesheets, loadGlobalBasicInfo, saveGlobalBasicInfo, getWeekEntries, saveWeekEntries } from '/timesheet/modules/storageModule.js';
+import { loadAllCSVData, generateCSVContent, downloadCSVFile, parseCSV } from '/timesheet/modules/csvModule.js';
+import { getWeekNumber, getWeekDateRangeFromKey, formatDate, getWeekDateRange, getLastWeekKey, getThisWeekKey } from '/timesheet/modules/dateModule.js';
 import {
     showSuccessMessage,
     showCopyOptionsModal,
     closeCopyModal
-} from './modules/uiModule.js';
+} from '/timesheet/modules/uiModule.js';
 
 console.log('App.js initialized and running - Version 2.1 (2025-06-23)');
 // 設置日期欄位的限制範圍
