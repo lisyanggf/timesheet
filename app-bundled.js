@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.1 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.2 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -960,6 +960,16 @@ function editEntry(entryId) {
     if (entry) {
         fillForm(entry);
         document.getElementById('entryId').value = entryId;
+        
+        // 自動聚焦到第一個輸入欄位（任務描述）
+        setTimeout(() => {
+            const firstInput = document.getElementById('task');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select(); // 選取所有文字，方便用戶修改
+                console.log('Auto-focused to task field for editing');
+            }
+        }, 100);
     }
 }
 
@@ -978,6 +988,16 @@ function copyEntry(entryId) {
         delete newEntry.id; // Remove ID so it gets a new one
         fillForm(newEntry);
         document.getElementById('entryId').value = ''; // Clear ID for new entry
+        
+        // 自動聚焦到第一個輸入欄位（任務描述）
+        setTimeout(() => {
+            const firstInput = document.getElementById('task');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select(); // 選取所有文字，方便用戶修改
+                console.log('Auto-focused to task field for copying');
+            }
+        }, 100);
     }
 }
 
@@ -1327,7 +1347,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.1 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.2 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
