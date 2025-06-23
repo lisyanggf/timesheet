@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.5 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.6 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1402,7 +1402,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.5 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.6 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1420,6 +1420,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 添加編輯頁面事件支持
         setTimeout(() => {
+            // 返回列表按鈕事件
+            const backBtn = document.getElementById('btn-back');
+            if (backBtn) {
+                console.log('Back button found, adding event listener');
+                backBtn.addEventListener('click', function() {
+                    console.log('Back button clicked - returning to main page');
+                    // 返回到主頁面
+                    window.location.href = 'index.html';
+                });
+            } else {
+                console.log('Back button not found');
+            }
+            
             // Zone變更事件
             const zoneSelect = document.getElementById('zone');
             if (zoneSelect) {
