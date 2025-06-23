@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.9 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.10 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -75,6 +75,48 @@ function getThisWeekKey() {
     const year = thisMonday.getFullYear();
     const weekNumber = getWeekNumber(thisMonday);
     return year + '-W' + weekNumber.toString().padStart(2, '0');
+}
+
+// 從日期取得週次鍵值
+function getWeekKeyFromDate(date) {
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - date.getDay() + 1);
+    const year = monday.getFullYear();
+    const weekNumber = getWeekNumber(monday);
+    return year + '-W' + weekNumber.toString().padStart(2, '0');
+}
+
+// 檢測CSV資料的來源週次
+function detectSourceWeekFromCSV(csvData) {
+    const dates = csvData
+        .map(entry => entry.Date)
+        .filter(date => date && date.trim())
+        .map(dateStr => new Date(dateStr))
+        .filter(date => !isNaN(date.getTime()));
+    
+    if (dates.length === 0) return null;
+    
+    // Get the week key from the first valid date
+    return getWeekKeyFromDate(dates[0]);
+}
+
+// 計算兩個週次間的日期偏移量
+function getWeekOffset(sourceWeekKey, targetWeekKey) {
+    const sourceRange = getWeekDateRangeFromKey(sourceWeekKey);
+    const targetRange = getWeekDateRangeFromKey(targetWeekKey);
+    
+    // Calculate the difference in days between the Monday of each week
+    const diffInMs = targetRange.start.getTime() - sourceRange.start.getTime();
+    const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+    
+    return diffInDays;
+}
+
+// 根據偏移量調整日期
+function shiftDateByOffset(dateStr, offsetDays) {
+    const date = new Date(dateStr);
+    date.setDate(date.getDate() + offsetDays);
+    return formatDate(date);
 }
 
 // 取得上週的週次鍵值
@@ -396,13 +438,33 @@ function hideWeekSelectionModal() {
     const modal = document.getElementById('week-selection-modal');
     modal.style.display = 'none';
     document.getElementById('custom-week-input').style.display = 'none';
+    
+    // Reset modal state
+    modal.removeAttribute('data-mode');
+    const modalTitle = modal.querySelector('h3');
+    if (modalTitle) {
+        modalTitle.textContent = '選擇要建立的週次';
+    }
+    
+    // Clear any radio button selections
+    const radioButtons = modal.querySelectorAll('input[name="weekOption"]');
+    radioButtons.forEach(radio => radio.checked = false);
+    
+    // Clear custom week input
+    const customWeekField = document.getElementById('custom-week-field');
+    if (customWeekField) {
+        customWeekField.value = '';
+    }
 }
 
 // 確認週次選擇
 function confirmWeekSelection() {
+    const modal = document.getElementById('week-selection-modal');
+    const isImportMode = modal.getAttribute('data-mode') === 'import';
+    
     const selectedOption = document.querySelector('input[name="weekOption"]:checked');
     if (!selectedOption) {
-        alert('請選擇要建立的週次');
+        alert(isImportMode ? '請選擇匯入目標週次' : '請選擇要建立的週次');
         return;
     }
     
@@ -425,20 +487,27 @@ function confirmWeekSelection() {
         }
     }
     
-    // 檢查是否已存在
-    const timesheets = loadAllTimesheets();
-    if (timesheets[weekKey] && timesheets[weekKey].length > 0) {
-        if (!confirm(`週次 ${weekKey} 已有工時記錄，是否繼續編輯？`)) {
-            return;
-        }
-    } else {
-        // 建立新的空工時表
-        timesheets[weekKey] = [];
-        saveAllTimesheets(timesheets);
-    }
-    
     hideWeekSelectionModal();
-    editTimesheet(weekKey);
+    
+    if (isImportMode) {
+        // Store target week and trigger file picker
+        window.importTargetWeek = weekKey;
+        const input = document.getElementById('import-file');
+        input.click();
+    } else {
+        // Original new timesheet logic
+        const timesheets = loadAllTimesheets();
+        if (timesheets[weekKey] && timesheets[weekKey].length > 0) {
+            if (!confirm(`週次 ${weekKey} 已有工時記錄，是否繼續編輯？`)) {
+                return;
+            }
+        } else {
+            // 建立新的空工時表
+            timesheets[weekKey] = [];
+            saveAllTimesheets(timesheets);
+        }
+        editTimesheet(weekKey);
+    }
 }
 
 // ==================== 上週按鈕功能 ====================
@@ -484,6 +553,9 @@ function createLastWeekTimesheet() {
 
 // 簡化的 CSV 解析
 function parseCSV(text) {
+    // Remove BOM if present
+    text = text.replace(/^\uFEFF/, '');
+    
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
     
@@ -494,6 +566,18 @@ function parseCSV(text) {
         headers.forEach((h, i) => {
             obj[h] = values[i] || '';
         });
+        
+        // Convert date format from YYYY/M/D to YYYY-MM-DD
+        if (obj.Date && obj.Date.includes('/')) {
+            const parts = obj.Date.split('/');
+            if (parts.length === 3) {
+                const year = parts[0];
+                const month = parts[1].padStart(2, '0');
+                const day = parts[2].padStart(2, '0');
+                obj.Date = `${year}-${month}-${day}`;
+            }
+        }
+        
         return obj;
     });
 }
@@ -559,8 +643,39 @@ function downloadCSVFile(csvContent, filename) {
 
 // 匯入工時表
 function importTimesheet() {
-    const input = document.getElementById('import-file');
-    input.click();
+    // Show week selection modal for import
+    showImportWeekSelectionModal();
+}
+
+// 顯示匯入週次選擇模態框
+function showImportWeekSelectionModal() {
+    const modal = document.getElementById('week-selection-modal');
+    modal.style.display = 'block';
+    
+    // Update modal title for import
+    const modalTitle = modal.querySelector('h3');
+    if (modalTitle) {
+        modalTitle.textContent = '選擇匯入目標週次';
+    }
+    
+    // 更新週次資訊
+    const thisWeekKey = getThisWeekKey();
+    const lastWeekKey = getLastWeekKey();
+    const thisWeekRange = getWeekDateRangeFromKey(thisWeekKey);
+    const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
+    
+    document.getElementById('this-week-info').textContent = 
+        `${thisWeekKey} (${thisWeekRange.start.toISOString().split('T')[0]} ~ ${thisWeekRange.end.toISOString().split('T')[0]})`;
+    document.getElementById('last-week-info').textContent = 
+        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
+    
+    // 檢查是否已存在
+    const timesheets = loadAllTimesheets();
+    document.getElementById('this-week-status').textContent = timesheets[thisWeekKey] ? '（已存在）' : '';
+    document.getElementById('last-week-status').textContent = timesheets[lastWeekKey] ? '（已存在）' : '';
+    
+    // Mark as import mode
+    modal.setAttribute('data-mode', 'import');
 }
 
 // ==================== 複製模態框功能 ====================
@@ -595,7 +710,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.9 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.10 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -720,16 +835,45 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
-                                // 簡化匯入：將所有資料放到當前週
-                                const currentWeek = getThisWeekKey();
+                                // Use selected target week or default to last week
+                                const targetWeekKey = window.importTargetWeek || getLastWeekKey();
+                                const sourceWeekKey = detectSourceWeekFromCSV(csvData);
                                 const timesheets = loadAllTimesheets();
-                                timesheets[currentWeek] = csvData;
+                                
+                                let updatedData;
+                                if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
+                                    // Calculate week offset and shift dates
+                                    const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    updatedData = csvData.map(entry => {
+                                        const newEntry = { ...entry };
+                                        if (newEntry.Date) {
+                                            newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                        }
+                                        return newEntry;
+                                    });
+                                } else {
+                                    // No date shifting needed
+                                    updatedData = csvData;
+                                }
+                                
+                                // Import to target week
+                                if (!timesheets[targetWeekKey]) {
+                                    timesheets[targetWeekKey] = [];
+                                }
+                                timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
+                                
                                 saveAllTimesheets(timesheets);
                                 renderTimesheetCards();
-                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${currentWeek}`);
+                                
+                                const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
+                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`);
+                                
+                                // Clear the target week selection
+                                window.importTargetWeek = null;
                             }
                         } catch (error) {
-                            alert('CSV 檔案格式錯誤');
+                            console.error('CSV import error:', error);
+                            alert('CSV 檔案格式錯誤: ' + error.message);
                         }
                     };
                     reader.readAsText(file);
@@ -838,16 +982,45 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
-                                // 簡化匯入：將所有資料放到當前週
-                                const currentWeek = getThisWeekKey();
+                                // Use selected target week or default to last week
+                                const targetWeekKey = window.importTargetWeek || getLastWeekKey();
+                                const sourceWeekKey = detectSourceWeekFromCSV(csvData);
                                 const timesheets = loadAllTimesheets();
-                                timesheets[currentWeek] = csvData;
+                                
+                                let updatedData;
+                                if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
+                                    // Calculate week offset and shift dates
+                                    const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    updatedData = csvData.map(entry => {
+                                        const newEntry = { ...entry };
+                                        if (newEntry.Date) {
+                                            newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                        }
+                                        return newEntry;
+                                    });
+                                } else {
+                                    // No date shifting needed
+                                    updatedData = csvData;
+                                }
+                                
+                                // Import to target week
+                                if (!timesheets[targetWeekKey]) {
+                                    timesheets[targetWeekKey] = [];
+                                }
+                                timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
+                                
                                 saveAllTimesheets(timesheets);
                                 renderTimesheetCards();
-                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${currentWeek}`);
+                                
+                                const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
+                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`);
+                                
+                                // Clear the target week selection
+                                window.importTargetWeek = null;
                             }
                         } catch (error) {
-                            alert('CSV 檔案格式錯誤');
+                            console.error('CSV import error:', error);
+                            alert('CSV 檔案格式錯誤: ' + error.message);
                         }
                     };
                     reader.readAsText(file);
