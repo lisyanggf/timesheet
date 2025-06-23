@@ -584,7 +584,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.5.1 (2025-06-23) - CSP compliant');
+console.log('App.js initialized and running - Version 2.6 (2025-06-23) - Debug mode');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -597,23 +597,41 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 綁定主要按鈕事件
         const basicInfoBtn = document.getElementById('btn-basic-info');
+        console.log('Basic info button found:', !!basicInfoBtn);
         if (basicInfoBtn) {
-            basicInfoBtn.addEventListener('click', showBasicInfoModal);
+            console.log('Adding event listener to basic info button');
+            basicInfoBtn.addEventListener('click', function() {
+                console.log('Basic info button clicked!');
+                showBasicInfoModal();
+            });
         }
         
         const newBtn = document.getElementById('btn-new');
+        console.log('New button found:', !!newBtn);
         if (newBtn) {
-            newBtn.addEventListener('click', newTimesheet);
+            console.log('Adding event listener to new button');
+            newBtn.addEventListener('click', function() {
+                console.log('New button clicked!');
+                newTimesheet();
+            });
         }
         
         const importBtn = document.getElementById('btn-import');
+        console.log('Import button found:', !!importBtn);
         if (importBtn) {
-            importBtn.addEventListener('click', importTimesheet);
+            console.log('Adding event listener to import button');
+            importBtn.addEventListener('click', function() {
+                console.log('Import button clicked!');
+                importTimesheet();
+            });
         }
         
         const clearBtn = document.getElementById('btn-clear-storage');
+        console.log('Clear button found:', !!clearBtn);
         if (clearBtn) {
+            console.log('Adding event listener to clear button');
             clearBtn.addEventListener('click', function() {
+                console.log('Clear button clicked!');
                 if (confirm('確定要清空所有資料嗎？此操作無法還原。')) {
                     localStorage.clear();
                     renderTimesheetCards();
@@ -670,8 +688,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 設置上週按鈕
         const lastWeekButton = document.getElementById('btn-last-week');
+        console.log('Last week button found:', !!lastWeekButton);
         if (lastWeekButton) {
-            lastWeekButton.addEventListener('click', createLastWeekTimesheet);
+            console.log('Adding event listener to last week button');
+            lastWeekButton.addEventListener('click', function() {
+                console.log('Last week button clicked!');
+                createLastWeekTimesheet();
+            });
         }
         
         // 綁定檔案輸入事件
