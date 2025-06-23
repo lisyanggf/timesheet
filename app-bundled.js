@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.0 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.1 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -982,9 +982,35 @@ function normalizeWorkHours(entries) {
         };
     });
     
-    // 驗證正規化結果
+    // 檢查正規化後的總計，如果不到40小時，將差額加到最後一筆有正常工時的記錄
     const normalizedTotal = normalizedEntries.reduce((sum, entry) => sum + (parseFloat(entry.regularHours) || 0), 0);
-    console.log(`Total regular hours after normalization: ${Math.round(normalizedTotal * 100) / 100} (should be ≤40)`);
+    const roundedTotal = Math.round(normalizedTotal * 100) / 100;
+    
+    if (roundedTotal < 40) {
+        const difference = Math.round((40 - roundedTotal) * 100) / 100;
+        console.log(`Normalization shortfall: ${difference} hours, adding to last entry`);
+        
+        // 找到最後一筆有正常工時的記錄
+        for (let i = normalizedEntries.length - 1; i >= 0; i--) {
+            if (parseFloat(normalizedEntries[i].regularHours) > 0) {
+                const currentRegular = parseFloat(normalizedEntries[i].regularHours);
+                const currentOT = parseFloat(normalizedEntries[i].otHours);
+                const adjustedRegular = Math.round((currentRegular + difference) * 100) / 100;
+                const adjustedOT = Math.round((currentOT - difference) * 100) / 100;
+                
+                normalizedEntries[i].regularHours = adjustedRegular;
+                normalizedEntries[i].otHours = adjustedOT;
+                normalizedEntries[i].ttlHours = Math.round((adjustedRegular + adjustedOT) * 100) / 100;
+                
+                console.log(`Adjusted last entry: +${difference}h regular, -${difference}h OT`);
+                break;
+            }
+        }
+    }
+    
+    // 驗證最終結果
+    const finalTotal = normalizedEntries.reduce((sum, entry) => sum + (parseFloat(entry.regularHours) || 0), 0);
+    console.log(`Final total regular hours: ${Math.round(finalTotal * 100) / 100} (target: 40)`);
     
     return normalizedEntries;
 }
@@ -1630,7 +1656,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.0 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.12.1 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
