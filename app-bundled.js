@@ -1,14 +1,21 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
 // Version 2.4 - Complete functionality without ES6 modules for GitHub Pages
 
-console.log('App complete bundled version 2.7 loading - Cache fixed...');
+console.log('App complete bundled version 2.8 loading - CSP safe...');
 
 // ==================== localStorage 與資料存取 ====================
 
 // 工時表資料
 function loadAllTimesheets() {
-    const data = localStorage.getItem('timesheets');
-    return data ? JSON.parse(data) : {};
+    try {
+        const data = localStorage.getItem('timesheets');
+        if (!data) return {};
+        // Safe JSON parsing to avoid eval
+        return JSON.parse(data);
+    } catch (e) {
+        console.warn('Failed to parse timesheets data:', e);
+        return {};
+    }
 }
 
 function saveAllTimesheets(timesheets) {
@@ -17,8 +24,15 @@ function saveAllTimesheets(timesheets) {
 
 // 全域基本資料
 function loadGlobalBasicInfo() {
-    const data = localStorage.getItem('globalBasicInfo');
-    return data ? JSON.parse(data) : null;
+    try {
+        const data = localStorage.getItem('globalBasicInfo');
+        if (!data) return null;
+        // Safe JSON parsing to avoid eval
+        return JSON.parse(data);
+    } catch (e) {
+        console.warn('Failed to parse basic info data:', e);
+        return null;
+    }
 }
 
 function saveGlobalBasicInfo(basicInfo) {
@@ -51,7 +65,7 @@ function formatDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return y + '-' + m + '-' + d;
 }
 
 // 取得本週的週次鍵值
@@ -61,7 +75,7 @@ function getThisWeekKey() {
     thisMonday.setDate(today.getDate() - today.getDay() + 1);
     const year = thisMonday.getFullYear();
     const weekNumber = getWeekNumber(thisMonday);
-    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+    return year + '-W' + weekNumber.toString().padStart(2, '0');
 }
 
 // 取得上週的週次鍵值
@@ -71,7 +85,7 @@ function getLastWeekKey() {
     lastMonday.setDate(today.getDate() - today.getDay() - 6);
     const year = lastMonday.getFullYear();
     const weekNumber = getWeekNumber(lastMonday);
-    return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+    return year + '-W' + weekNumber.toString().padStart(2, '0');
 }
 
 // 計算週數（以週日為週首，YYYY-Www）
@@ -147,7 +161,7 @@ function renderTimesheetCards() {
         colorBar.className = 'card-color-bar';
         
         const statusTag = document.createElement('div');
-        statusTag.className = `status-tag ${isComplete ? 'status-completed' : 'status-inprogress'}`;
+        statusTag.className = 'status-tag ' + (isComplete ? 'status-completed' : 'status-inprogress');
         statusTag.title = isComplete ? '總工時已達40小時' : '總工時未達40小時';
         statusTag.textContent = isComplete ? '✓' : '⚠';
         
@@ -160,7 +174,7 @@ function renderTimesheetCards() {
         
         const dateRangeElement = document.createElement('div');
         dateRangeElement.className = 'date-range';
-        dateRangeElement.textContent = `${startStr} 至 ${endStr}`;
+        dateRangeElement.textContent = startStr + ' 至 ' + endStr;
         
         header.appendChild(weekTitle);
         header.appendChild(dateRangeElement);
@@ -260,17 +274,17 @@ function newTimesheet() {
 
 // 編輯工時表
 function editTimesheet(weekKey) {
-    window.location.href = `edit.html?week=${encodeURIComponent(weekKey)}`;
+    window.location.href = 'edit.html?week=' + encodeURIComponent(weekKey);
 }
 
 // 刪除工時表
 function deleteTimesheet(weekKey) {
-    if (confirm(`確定要刪除 ${weekKey} 的工時表嗎？`)) {
+    if (confirm('確定要刪除 ' + weekKey + ' 的工時表嗎？')) {
         const timesheets = loadAllTimesheets();
         delete timesheets[weekKey];
         saveAllTimesheets(timesheets);
         renderTimesheetCards();
-        showSuccessMessage(`已刪除 ${weekKey} 的工時表`);
+        showSuccessMessage('已刪除 ' + weekKey + ' 的工時表');
     }
 }
 
@@ -283,7 +297,7 @@ function exportTimesheet(weekKey) {
     }
     
     const csvContent = generateCSVContent(entries);
-    const filename = `timesheet_${weekKey}.csv`;
+    const filename = 'timesheet_' + weekKey + '.csv';
     downloadCSVFile(csvContent, filename);
 }
 
@@ -292,20 +306,18 @@ function showSuccessMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'success-message';
     messageDiv.textContent = message;
-    messageDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4CAF50;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 5px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        z-index: 10000;
-        font-size: 14px;
-        max-width: 300px;
-        word-wrap: break-word;
-    `;
+    messageDiv.style.position = 'fixed';
+    messageDiv.style.top = '20px';
+    messageDiv.style.right = '20px';
+    messageDiv.style.background = '#4CAF50';
+    messageDiv.style.color = 'white';
+    messageDiv.style.padding = '15px 20px';
+    messageDiv.style.borderRadius = '5px';
+    messageDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    messageDiv.style.zIndex = '10000';
+    messageDiv.style.fontSize = '14px';
+    messageDiv.style.maxWidth = '300px';
+    messageDiv.style.wordWrap = 'break-word';
     
     document.body.appendChild(messageDiv);
     
