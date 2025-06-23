@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.3 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.4 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -995,6 +995,41 @@ function copyEntry(entryId) {
     if (entry) {
         const newEntry = { ...entry };
         delete newEntry.id; // Remove ID so it gets a new one
+        
+        // 智能日期調整：如果不是週六，自動加一天
+        if (newEntry.date || newEntry.Date) {
+            const currentDate = new Date(newEntry.date || newEntry.Date);
+            if (!isNaN(currentDate.getTime())) {
+                const dayOfWeek = currentDate.getDay(); // 0=Sunday, 6=Saturday
+                
+                // 如果不是週六（6），就加一天
+                if (dayOfWeek !== 6) {
+                    const nextDate = new Date(currentDate);
+                    nextDate.setDate(currentDate.getDate() + 1);
+                    
+                    // 檢查加一天後是否仍在同一週內
+                    const currentWeekKey = getWeekKeyFromDate(currentDate);
+                    const nextWeekKey = getWeekKeyFromDate(nextDate);
+                    
+                    if (currentWeekKey === nextWeekKey) {
+                        // 仍在同一週內，可以加一天
+                        const newDateStr = formatDate(nextDate);
+                        
+                        // 更新兩個可能的日期欄位
+                        if (newEntry.date) newEntry.date = newDateStr;
+                        if (newEntry.Date) newEntry.Date = newDateStr;
+                        
+                        console.log(`Date adjusted for copy: ${formatDate(currentDate)} -> ${newDateStr}`);
+                    } else {
+                        // 加一天會跨週，保持原日期
+                        console.log(`Date kept same (would cross week): ${formatDate(currentDate)}`);
+                    }
+                } else {
+                    console.log(`Date kept same (Saturday): ${formatDate(currentDate)}`);
+                }
+            }
+        }
+        
         fillForm(newEntry);
         document.getElementById('entryId').value = ''; // Clear ID for new entry
         
@@ -1365,7 +1400,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.3 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.4 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
