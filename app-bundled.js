@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.10.1 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.10.6 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -117,6 +117,74 @@ function shiftDateByOffset(dateStr, offsetDays) {
     const date = new Date(dateStr);
     date.setDate(date.getDate() + offsetDays);
     return formatDate(date);
+}
+
+// 從CSV資料中提取基本資料
+function extractBasicInfoFromCSV(csvData) {
+    if (csvData.length === 0) return null;
+    
+    const firstEntry = csvData[0];
+    const employeeName = firstEntry.name || firstEntry.Name || '';
+    const employeeType = firstEntry.employeeType || firstEntry.InternalOrOutsource || '';
+    
+    return {
+        employeeName: employeeName.trim(),
+        employeeType: employeeType.trim()
+    };
+}
+
+// 處理基本資料匯入邏輯
+function handleBasicInfoImport(csvBasicInfo) {
+    if (!csvBasicInfo || (!csvBasicInfo.employeeName && !csvBasicInfo.employeeType)) {
+        return true; // No basic info in CSV, continue with import
+    }
+    
+    const currentBasicInfo = loadGlobalBasicInfo() || {};
+    const currentName = currentBasicInfo.employeeName || '';
+    const currentType = currentBasicInfo.employeeType || '';
+    
+    const csvName = csvBasicInfo.employeeName || '';
+    const csvType = csvBasicInfo.employeeType || '';
+    
+    // Case 1: Current basic info is empty - auto import from CSV
+    if (!currentName && !currentType) {
+        if (csvName || csvType) {
+            const newBasicInfo = {
+                employeeName: csvName || currentName,
+                employeeType: csvType || currentType
+            };
+            saveGlobalBasicInfo(newBasicInfo);
+            showSuccessMessage(`已自動匯入基本資料：${csvName || '(無姓名)'} - ${csvType || '(無類型)'}`);
+        }
+        return true;
+    }
+    
+    // Case 2: Check for conflicts
+    const nameConflict = csvName && currentName && csvName !== currentName;
+    const typeConflict = csvType && currentType && csvType !== currentType;
+    
+    if (nameConflict || typeConflict) {
+        let conflictMessage = '發現基本資料不一致：\n\n';
+        conflictMessage += `本地資料：${currentName || '(空)'} - ${currentType || '(空)'}\n`;
+        conflictMessage += `CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}\n\n`;
+        conflictMessage += '基本資料將使用本地的，是否繼續匯入？';
+        
+        return confirm(conflictMessage);
+    }
+    
+    // Case 3: No conflicts or CSV has empty fields - fill in missing data
+    if (csvName && !currentName) {
+        currentBasicInfo.employeeName = csvName;
+        saveGlobalBasicInfo(currentBasicInfo);
+        showSuccessMessage(`已補充員工姓名：${csvName}`);
+    }
+    if (csvType && !currentType) {
+        currentBasicInfo.employeeType = csvType;
+        saveGlobalBasicInfo(currentBasicInfo);
+        showSuccessMessage(`已補充員工類型：${csvType}`);
+    }
+    
+    return true;
 }
 
 // 取得上週的週次鍵值
@@ -588,15 +656,39 @@ function parseCSV(text) {
         }
         
         // Normalize field names for internal use
-        if (obj['Regular Hours']) {
-            obj.regularHours = parseFloat(obj['Regular Hours']) || 0;
-        }
-        if (obj['OT Hours']) {
-            obj.otHours = parseFloat(obj['OT Hours']) || 0;
-        }
-        if (obj['TTL_Hours']) {
-            obj.ttlHours = parseFloat(obj['TTL_Hours']) || 0;
-        }
+        const fieldMapping = {
+            'Regular Hours': 'regularHours',
+            'OT Hours': 'otHours',
+            'TTL_Hours': 'ttlHours',
+            'Zone': 'zone',
+            'Project': 'project',
+            'Product Module': 'productModule',
+            'Activity Type': 'activityType',
+            'Task': 'task',
+            'Date': 'date',
+            'Start Date': 'startDate',
+            'End Date': 'endDate',
+            'Comments': 'comments',
+            'PM': 'pm',
+            'Name': 'name',
+            'InternalOrOutsource': 'employeeType'
+        };
+        
+        // Apply field mappings
+        Object.keys(fieldMapping).forEach(csvField => {
+            if (obj[csvField] !== undefined) {
+                const internalField = fieldMapping[csvField];
+                if (csvField.includes('Hours')) {
+                    obj[internalField] = parseFloat(obj[csvField]) || 0;
+                } else {
+                    // For non-hour fields, even empty strings should be mapped
+                    obj[internalField] = obj[csvField] || '';
+                }
+            }
+        });
+        
+        // Debug: log the mapping result
+        console.log('CSV parsing result:', obj);
         
         return obj;
     });
@@ -721,19 +813,201 @@ function closeCopyModal() {
     // 簡化版本
 }
 
+// ==================== 編輯頁面功能 ====================
+
+// 編輯單個記錄
+function editEntry(entryId) {
+    const params = new URLSearchParams(window.location.search);
+    const weekKey = params.get('week');
+    if (!weekKey) return;
+    
+    const timesheets = loadAllTimesheets();
+    const entries = timesheets[weekKey] || [];
+    const entry = entries.find(e => e.id == entryId);
+    
+    if (entry) {
+        fillForm(entry);
+        document.getElementById('entryId').value = entryId;
+    }
+}
+
+// 複製單個記錄
+function copyEntry(entryId) {
+    const params = new URLSearchParams(window.location.search);
+    const weekKey = params.get('week');
+    if (!weekKey) return;
+    
+    const timesheets = loadAllTimesheets();
+    const entries = timesheets[weekKey] || [];
+    const entry = entries.find(e => e.id == entryId);
+    
+    if (entry) {
+        const newEntry = { ...entry };
+        delete newEntry.id; // Remove ID so it gets a new one
+        fillForm(newEntry);
+        document.getElementById('entryId').value = ''; // Clear ID for new entry
+    }
+}
+
+// 刪除單個記錄
+function deleteEntry(entryId) {
+    if (confirm('確定要刪除這筆記錄嗎？')) {
+        const params = new URLSearchParams(window.location.search);
+        const weekKey = params.get('week');
+        if (!weekKey) return;
+        
+        const timesheets = loadAllTimesheets();
+        const entries = timesheets[weekKey] || [];
+        const updatedEntries = entries.filter(e => e.id != entryId);
+        
+        timesheets[weekKey] = updatedEntries;
+        saveAllTimesheets(timesheets);
+        
+        if (typeof renderEntriesTable === 'function') {
+            renderEntriesTable();
+        }
+        showSuccessMessage('記錄已刪除');
+    }
+}
+
+// 填充表單
+function fillForm(entry) {
+    if (!entry) return;
+    
+    const fields = ['task', 'activityType', 'zone', 'project', 'productModule', 'pm', 
+                   'regularHours', 'otHours', 'ttlHours', 'date', 'startDate', 'endDate', 'comments'];
+    
+    fields.forEach(field => {
+        const element = document.getElementById(field);
+        if (element && entry[field] !== undefined) {
+            element.value = entry[field];
+        }
+    });
+}
+
+// 渲染記錄表格
+function renderEntriesTable() {
+    const params = new URLSearchParams(window.location.search);
+    const weekKey = params.get('week');
+    if (!weekKey) return;
+    
+    const timesheets = loadAllTimesheets();
+    const entries = timesheets[weekKey] || [];
+    const tbody = document.getElementById('entries-tbody');
+    
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    entries.forEach(entry => {
+        console.log('Rendering entry:', entry); // Debug log
+        
+        const row = document.createElement('tr');
+        
+        // Use multiple field name variants to ensure compatibility
+        const dateValue = entry.date || entry.Date || '';
+        const zoneValue = entry.zone || entry.Zone || '';
+        const activityValue = entry.activityType || entry['Activity Type'] || '';
+        const taskValue = entry.task || entry.Task || '';
+        const regularValue = entry.regularHours || entry['Regular Hours'] || 0;
+        const otValue = entry.otHours || entry['OT Hours'] || 0;
+        const ttlValue = entry.ttlHours || entry.TTL_Hours || entry['TTL_Hours'] || 0;
+        
+        row.innerHTML = `
+            <td>${dateValue}</td>
+            <td>${zoneValue}</td>
+            <td>${activityValue}</td>
+            <td>${taskValue}</td>
+            <td>${regularValue}</td>
+            <td>${otValue}</td>
+            <td>${ttlValue}</td>
+            <td class="actions">
+                <button class="btn-edit-entry" data-entry-id="${entry.id}">修改</button>
+                <button class="btn-copy-entry" data-entry-id="${entry.id}">複製</button>
+                <button class="btn-delete-entry" data-entry-id="${entry.id}">刪除</button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // Update summary
+    const totalEntries = entries.length;
+    const totalHours = entries.reduce((sum, entry) => {
+        const hours = entry.ttlHours || entry.TTL_Hours || entry['TTL_Hours'] || 0;
+        return sum + (parseFloat(hours) || 0);
+    }, 0);
+    
+    const totalEntriesElement = document.getElementById('total-entries');
+    const totalHoursElement = document.getElementById('total-hours');
+    
+    if (totalEntriesElement) totalEntriesElement.textContent = totalEntries;
+    if (totalHoursElement) totalHoursElement.textContent = Math.round(totalHours * 10) / 10;
+    
+    // Add event delegation for action buttons
+    setupTableEventDelegation();
+}
+
+// 設置表格事件委托
+function setupTableEventDelegation() {
+    const tbody = document.getElementById('entries-tbody');
+    if (!tbody) return;
+    
+    // Remove existing listeners to avoid duplicates
+    tbody.removeEventListener('click', handleTableButtonClick);
+    
+    // Add event delegation
+    tbody.addEventListener('click', handleTableButtonClick);
+}
+
+// 處理表格按鈕點擊事件
+function handleTableButtonClick(event) {
+    const target = event.target;
+    if (!target.matches('button')) return;
+    
+    const entryId = target.getAttribute('data-entry-id');
+    if (!entryId) return;
+    
+    console.log('Button clicked:', target.className, 'entryId:', entryId);
+    
+    if (target.classList.contains('btn-edit-entry')) {
+        editEntry(entryId);
+    } else if (target.classList.contains('btn-copy-entry')) {
+        copyEntry(entryId);
+    } else if (target.classList.contains('btn-delete-entry')) {
+        deleteEntry(entryId);
+    }
+}
+
 // ==================== 全域函數設定 ====================
 
 // 將函數設為全域可用
 window.exportTimesheet = exportTimesheet;
 window.closeCopyModal = closeCopyModal;
 window.createLastWeekTimesheet = createLastWeekTimesheet;
+window.editEntry = editEntry;
+window.copyEntry = copyEntry;
+window.deleteEntry = deleteEntry;
+window.renderEntriesTable = renderEntriesTable;
+window.setupTableEventDelegation = setupTableEventDelegation;
+window.handleTableButtonClick = handleTableButtonClick;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.10.1 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.10.6 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // 檢查是否為編輯頁面
+    if (window.location.pathname.includes('edit.html')) {
+        // 編輯頁面初始化
+        console.log('Edit page detected, initializing...');
+        if (typeof renderEntriesTable === 'function') {
+            renderEntriesTable();
+        }
+        return;
+    }
     
     // 檢查是否為首頁
     console.log('Current pathname:', window.location.pathname);
@@ -855,6 +1129,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
+                                // Handle basic info from CSV
+                                const csvBasicInfo = extractBasicInfoFromCSV(csvData);
+                                const shouldContinue = handleBasicInfoImport(csvBasicInfo);
+                                if (!shouldContinue) {
+                                    return; // User cancelled import
+                                }
+                                
                                 // Use selected target week or default to last week
                                 const targetWeekKey = window.importTargetWeek || getLastWeekKey();
                                 const sourceWeekKey = detectSourceWeekFromCSV(csvData);
@@ -864,29 +1145,60 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    updatedData = csvData.map(entry => {
+                                    updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         if (newEntry.Date) {
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
                                         }
+                                        // Add unique ID for each entry
+                                        newEntry.id = Date.now() + '_' + index;
                                         return newEntry;
                                     });
                                 } else {
-                                    // No date shifting needed
-                                    updatedData = csvData;
+                                    // No date shifting needed, but still add IDs
+                                    updatedData = csvData.map((entry, index) => {
+                                        const newEntry = { ...entry };
+                                        newEntry.id = Date.now() + '_' + index;
+                                        return newEntry;
+                                    });
+                                }
+                                
+                                // Check if target week already has data
+                                const existingEntries = timesheets[targetWeekKey] || [];
+                                let finalEntries = [];
+                                let successMessage = '';
+                                
+                                if (existingEntries.length > 0) {
+                                    // Ask user whether to append or overwrite
+                                    const choice = confirm(
+                                        `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n\n` +
+                                        `點擊「確定」= 附加模式（保留現有記錄）\n` +
+                                        `點擊「取消」= 覆寫模式（替換所有記錄）\n\n` +
+                                        `要附加到現有記錄嗎？`
+                                    );
+                                    
+                                    if (choice) {
+                                        // Append mode - keep existing and add new
+                                        finalEntries = existingEntries.concat(updatedData);
+                                        successMessage = `已附加 ${updatedData.length} 筆記錄到 ${targetWeekKey}（原有 ${existingEntries.length} 筆）`;
+                                    } else {
+                                        // Overwrite mode - replace all
+                                        finalEntries = updatedData;
+                                        successMessage = `已覆寫 ${targetWeekKey} 的記錄（${updatedData.length} 筆新記錄）`;
+                                    }
+                                } else {
+                                    // No existing data, just import
+                                    finalEntries = updatedData;
+                                    const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
+                                    successMessage = `已匯入 ${updatedData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`;
                                 }
                                 
                                 // Import to target week
-                                if (!timesheets[targetWeekKey]) {
-                                    timesheets[targetWeekKey] = [];
-                                }
-                                timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
+                                timesheets[targetWeekKey] = finalEntries;
                                 
                                 saveAllTimesheets(timesheets);
                                 renderTimesheetCards();
-                                
-                                const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
-                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`);
+                                showSuccessMessage(successMessage);
                                 
                                 // Clear the target week selection
                                 window.importTargetWeek = null;
@@ -1002,6 +1314,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
+                                // Handle basic info from CSV
+                                const csvBasicInfo = extractBasicInfoFromCSV(csvData);
+                                const shouldContinue = handleBasicInfoImport(csvBasicInfo);
+                                if (!shouldContinue) {
+                                    return; // User cancelled import
+                                }
+                                
                                 // Use selected target week or default to last week
                                 const targetWeekKey = window.importTargetWeek || getLastWeekKey();
                                 const sourceWeekKey = detectSourceWeekFromCSV(csvData);
@@ -1011,29 +1330,60 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    updatedData = csvData.map(entry => {
+                                    updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         if (newEntry.Date) {
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
                                         }
+                                        // Add unique ID for each entry
+                                        newEntry.id = Date.now() + '_' + index;
                                         return newEntry;
                                     });
                                 } else {
-                                    // No date shifting needed
-                                    updatedData = csvData;
+                                    // No date shifting needed, but still add IDs
+                                    updatedData = csvData.map((entry, index) => {
+                                        const newEntry = { ...entry };
+                                        newEntry.id = Date.now() + '_' + index;
+                                        return newEntry;
+                                    });
+                                }
+                                
+                                // Check if target week already has data
+                                const existingEntries = timesheets[targetWeekKey] || [];
+                                let finalEntries = [];
+                                let successMessage = '';
+                                
+                                if (existingEntries.length > 0) {
+                                    // Ask user whether to append or overwrite
+                                    const choice = confirm(
+                                        `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n\n` +
+                                        `點擊「確定」= 附加模式（保留現有記錄）\n` +
+                                        `點擊「取消」= 覆寫模式（替換所有記錄）\n\n` +
+                                        `要附加到現有記錄嗎？`
+                                    );
+                                    
+                                    if (choice) {
+                                        // Append mode - keep existing and add new
+                                        finalEntries = existingEntries.concat(updatedData);
+                                        successMessage = `已附加 ${updatedData.length} 筆記錄到 ${targetWeekKey}（原有 ${existingEntries.length} 筆）`;
+                                    } else {
+                                        // Overwrite mode - replace all
+                                        finalEntries = updatedData;
+                                        successMessage = `已覆寫 ${targetWeekKey} 的記錄（${updatedData.length} 筆新記錄）`;
+                                    }
+                                } else {
+                                    // No existing data, just import
+                                    finalEntries = updatedData;
+                                    const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
+                                    successMessage = `已匯入 ${updatedData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`;
                                 }
                                 
                                 // Import to target week
-                                if (!timesheets[targetWeekKey]) {
-                                    timesheets[targetWeekKey] = [];
-                                }
-                                timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
+                                timesheets[targetWeekKey] = finalEntries;
                                 
                                 saveAllTimesheets(timesheets);
                                 renderTimesheetCards();
-                                
-                                const sourceInfo = sourceWeekKey ? ` (來源: ${sourceWeekKey})` : '';
-                                showSuccessMessage(`已匯入 ${csvData.length} 筆資料到 ${targetWeekKey}${sourceInfo}`);
+                                showSuccessMessage(successMessage);
                                 
                                 // Clear the target week selection
                                 window.importTargetWeek = null;
