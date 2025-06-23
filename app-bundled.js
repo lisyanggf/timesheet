@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.7 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.8 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -138,7 +138,108 @@ function extractBasicInfoFromCSV(csvData) {
     };
 }
 
-// 顯示三選項對話框
+// 顯示基本資料選擇對話框
+function showBasicInfoChoiceDialog(message, localData, csvData) {
+    return new Promise((resolve) => {
+        // 創建對話框元素
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin-top: 0; color: #333;">基本資料選擇</h3>
+            <p style="margin-bottom: 20px; line-height: 1.5;">${message}</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+                <button id="choice-local" style="
+                    padding: 15px;
+                    border: 2px solid #007bff;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#e7f3ff'" onmouseout="this.style.background='#f8f9fa'">
+                    <strong>使用本地資料</strong><br>
+                    <span style="color: #666; font-size: 14px;">${localData}</span>
+                </button>
+                
+                <button id="choice-csv" style="
+                    padding: 15px;
+                    border: 2px solid #28a745;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#e8f5e8'" onmouseout="this.style.background='#f8f9fa'">
+                    <strong>使用CSV資料</strong><br>
+                    <span style="color: #666; font-size: 14px;">${csvData}</span>
+                </button>
+            </div>
+            
+            <div style="text-align: right;">
+                <button id="choice-cancel" style="
+                    padding: 8px 16px;
+                    border: 1px solid #6c757d;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    margin-left: 10px;
+                ">取消匯入</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // 綁定事件
+        document.getElementById('choice-local').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(1);
+        };
+
+        document.getElementById('choice-csv').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(2);
+        };
+
+        document.getElementById('choice-cancel').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(3);
+        };
+
+        // 點擊背景關閉
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve(3);
+            }
+        };
+    });
+}
+
+// 顯示三選項對話框（用於匯入模式選擇）
 function showThreeChoiceDialog(message, option1, option2, option3) {
     const choice = prompt(
         `${message}\n\n` +
@@ -156,7 +257,7 @@ function showThreeChoiceDialog(message, option1, option2, option3) {
 }
 
 // 處理基本資料匯入邏輯
-function handleBasicInfoImport(csvBasicInfo) {
+async function handleBasicInfoImport(csvBasicInfo) {
     if (!csvBasicInfo || (!csvBasicInfo.employeeName && !csvBasicInfo.employeeType)) {
         return true; // No basic info in CSV, continue with import
     }
@@ -186,17 +287,14 @@ function handleBasicInfoImport(csvBasicInfo) {
     const typeConflict = csvType && currentType && csvType !== currentType;
     
     if (nameConflict || typeConflict) {
-        const conflictMessage = 
-            '發現基本資料不一致：\n\n' +
-            `本地資料：${currentName || '(空)'} - ${currentType || '(空)'}\n` +
-            `CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}\n\n` +
-            '請選擇要使用的基本資料：';
+        const conflictMessage = '發現基本資料不一致，請選擇要使用的基本資料：';
+        const localDataDisplay = `${currentName || '(空)'} - ${currentType || '(空)'}`;
+        const csvDataDisplay = `${csvName || '(空)'} - ${csvType || '(空)'}`;
         
-        const choice = showThreeChoiceDialog(
+        const choice = await showBasicInfoChoiceDialog(
             conflictMessage,
-            `使用本地資料：${currentName || '(空)'} - ${currentType || '(空)'}`,
-            `使用CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}`,
-            '取消匯入'
+            localDataDisplay,
+            csvDataDisplay
         );
         
         if (choice === 1) {
@@ -1443,7 +1541,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.7 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.8 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1690,13 +1788,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = async function(e) {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
                                 // Handle basic info from CSV
                                 const csvBasicInfo = extractBasicInfoFromCSV(csvData);
-                                const shouldContinue = handleBasicInfoImport(csvBasicInfo);
+                                const shouldContinue = await handleBasicInfoImport(csvBasicInfo);
                                 if (!shouldContinue) {
                                     return; // User cancelled import
                                 }
@@ -1880,13 +1978,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = async function(e) {
                         try {
                             const csvData = parseCSV(e.target.result);
                             if (csvData.length > 0) {
                                 // Handle basic info from CSV
                                 const csvBasicInfo = extractBasicInfoFromCSV(csvData);
-                                const shouldContinue = handleBasicInfoImport(csvBasicInfo);
+                                const shouldContinue = await handleBasicInfoImport(csvBasicInfo);
                                 if (!shouldContinue) {
                                     return; // User cancelled import
                                 }
