@@ -1,7 +1,7 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
 // Version 2.4 - Complete functionality without ES6 modules for GitHub Pages
 
-console.log('App complete bundled version 2.4 loading...');
+console.log('App complete bundled version 2.5 loading - CSP compliant...');
 
 // ==================== localStorage 與資料存取 ====================
 
@@ -141,41 +141,80 @@ function renderTimesheetCards() {
         const isComplete = totalHours >= 40;
         const card = document.createElement('div');
         card.className = 'timesheet-card';
-        card.innerHTML = `
-            <div class="card-color-bar"></div>
-            <div class="status-tag ${isComplete ? 'status-completed' : 'status-inprogress'}"
-                 title="${isComplete ? '總工時已達40小時' : '總工時未達40小時'}">
-                ${isComplete ? '✓' : '⚠'}
-            </div>
-            <div class="card-header">
-                <div class="week-title">${key}</div>
-                <div class="date-range">${startStr} 至 ${endStr}</div>
-            </div>
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-value">${entries.length}</div>
-                    <div class="stat-label">記錄筆數</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${totalHours}</div>
-                    <div class="stat-label">總工時</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${totalRegularHours}</div>
-                    <div class="stat-label">總正常工時</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${totalOtHours}</div>
-                    <div class="stat-label">總加班工時</div>
-                </div>
-            </div>
-            <div class="card-actions">
-                <button class="btn-edit" data-week="${key}">修改</button>
-                <button class="btn-copy" data-week="${key}">複製</button>
-                <button class="btn-delete" data-week="${key}">刪除</button>
-                <button class="btn-export" data-week="${key}">匯出</button>
-            </div>
-        `;
+        
+        // Create elements without innerHTML to avoid CSP issues
+        const colorBar = document.createElement('div');
+        colorBar.className = 'card-color-bar';
+        
+        const statusTag = document.createElement('div');
+        statusTag.className = `status-tag ${isComplete ? 'status-completed' : 'status-inprogress'}`;
+        statusTag.title = isComplete ? '總工時已達40小時' : '總工時未達40小時';
+        statusTag.textContent = isComplete ? '✓' : '⚠';
+        
+        const header = document.createElement('div');
+        header.className = 'card-header';
+        
+        const weekTitle = document.createElement('div');
+        weekTitle.className = 'week-title';
+        weekTitle.textContent = key;
+        
+        const dateRange = document.createElement('div');
+        dateRange.className = 'date-range';
+        dateRange.textContent = `${startStr} 至 ${endStr}`;
+        
+        header.appendChild(weekTitle);
+        header.appendChild(dateRange);
+        
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+        
+        const statsData = [
+            { value: entries.length, label: '記錄筆數' },
+            { value: totalHours, label: '總工時' },
+            { value: totalRegularHours, label: '總正常工時' },
+            { value: totalOtHours, label: '總加班工時' }
+        ];
+        
+        statsData.forEach(stat => {
+            const statItem = document.createElement('div');
+            statItem.className = 'stat-item';
+            
+            const statValue = document.createElement('div');
+            statValue.className = 'stat-value';
+            statValue.textContent = stat.value;
+            
+            const statLabel = document.createElement('div');
+            statLabel.className = 'stat-label';
+            statLabel.textContent = stat.label;
+            
+            statItem.appendChild(statValue);
+            statItem.appendChild(statLabel);
+            stats.appendChild(statItem);
+        });
+        
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
+        
+        const buttons = [
+            { class: 'btn-edit', text: '修改' },
+            { class: 'btn-copy', text: '複製' },
+            { class: 'btn-delete', text: '刪除' },
+            { class: 'btn-export', text: '匯出' }
+        ];
+        
+        buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = btn.class;
+            button.textContent = btn.text;
+            button.setAttribute('data-week', key);
+            actions.appendChild(button);
+        });
+        
+        card.appendChild(colorBar);
+        card.appendChild(statusTag);
+        card.appendChild(header);
+        card.appendChild(stats);
+        card.appendChild(actions);
         container.appendChild(card);
     });
 
@@ -545,7 +584,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.4 (2025-06-23)');
+console.log('App.js initialized and running - Version 2.5 (2025-06-23) - CSP compliant');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
