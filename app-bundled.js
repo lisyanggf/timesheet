@@ -1,7 +1,7 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
 // Version 2.4 - Complete functionality without ES6 modules for GitHub Pages
 
-console.log('App complete bundled version 2.5 loading - CSP compliant...');
+console.log('App complete bundled version 2.7 loading - Cache fixed...');
 
 // ==================== localStorage 與資料存取 ====================
 
@@ -584,7 +584,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.6.1 (2025-06-23) - Cache busted');
+console.log('App.js initialized and running - Version 2.7 (2025-06-23) - Cache fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
