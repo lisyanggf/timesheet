@@ -158,12 +158,12 @@ function renderTimesheetCards() {
         weekTitle.className = 'week-title';
         weekTitle.textContent = key;
         
-        const dateRange = document.createElement('div');
-        dateRange.className = 'date-range';
-        dateRange.textContent = `${startStr} 至 ${endStr}`;
+        const dateRangeElement = document.createElement('div');
+        dateRangeElement.className = 'date-range';
+        dateRangeElement.textContent = `${startStr} 至 ${endStr}`;
         
         header.appendChild(weekTitle);
-        header.appendChild(dateRange);
+        header.appendChild(dateRangeElement);
         
         const stats = document.createElement('div');
         stats.className = 'stats';
@@ -584,7 +584,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.5 (2025-06-23) - CSP compliant');
+console.log('App.js initialized and running - Version 2.5.1 (2025-06-23) - CSP compliant');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
