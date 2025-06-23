@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.10 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.10.1 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -190,9 +190,18 @@ function renderTimesheetCards() {
         const dateRange = getWeekDateRange(weekNumber, year);
         const startStr = dateRange.start.toISOString().split('T')[0];
         const endStr = dateRange.end.toISOString().split('T')[0];
-        const totalHours = entries.reduce((sum, entry) => sum + (entry.ttlHours || entry.TTL_Hours || 0), 0);
-        const totalRegularHours = entries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
-        const totalOtHours = entries.reduce((sum, entry) => sum + (entry.otHours || 0), 0);
+        const totalHours = entries.reduce((sum, entry) => {
+            const hours = entry.ttlHours || entry.TTL_Hours || entry['TTL_Hours'] || 0;
+            return sum + (parseFloat(hours) || 0);
+        }, 0);
+        const totalRegularHours = entries.reduce((sum, entry) => {
+            const hours = entry.regularHours || entry['Regular Hours'] || 0;
+            return sum + (parseFloat(hours) || 0);
+        }, 0);
+        const totalOtHours = entries.reduce((sum, entry) => {
+            const hours = entry.otHours || entry['OT Hours'] || 0;
+            return sum + (parseFloat(hours) || 0);
+        }, 0);
         const isComplete = totalHours >= 40;
         const card = document.createElement('div');
         card.className = 'timesheet-card';
@@ -225,9 +234,9 @@ function renderTimesheetCards() {
         
         const statsData = [
             { value: entries.length, label: '記錄筆數' },
-            { value: totalHours, label: '總工時' },
-            { value: totalRegularHours, label: '總正常工時' },
-            { value: totalOtHours, label: '總加班工時' }
+            { value: Math.round(totalHours * 10) / 10, label: '總工時' },
+            { value: Math.round(totalRegularHours * 10) / 10, label: '總正常工時' },
+            { value: Math.round(totalOtHours * 10) / 10, label: '總加班工時' }
         ];
         
         statsData.forEach(stat => {
@@ -578,6 +587,17 @@ function parseCSV(text) {
             }
         }
         
+        // Normalize field names for internal use
+        if (obj['Regular Hours']) {
+            obj.regularHours = parseFloat(obj['Regular Hours']) || 0;
+        }
+        if (obj['OT Hours']) {
+            obj.otHours = parseFloat(obj['OT Hours']) || 0;
+        }
+        if (obj['TTL_Hours']) {
+            obj.ttlHours = parseFloat(obj['TTL_Hours']) || 0;
+        }
+        
         return obj;
     });
 }
@@ -710,7 +730,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.10 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.10.1 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
