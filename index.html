@@ -142,20 +142,6 @@
         <!-- 卡片將由JavaScript動態生成 -->
     </main>
 
-    <script type="module">
-        // Test if modules are loading
-        console.log('Module script loading...');
-        
-        try {
-            import('./app.js').then(() => {
-                console.log('App.js loaded successfully');
-            }).catch(error => {
-                console.error('Failed to load app.js:', error);
-            });
-        } catch (error) {
-            console.error('Import error:', error);
-        }
-    </script>
     <script type="module" src="./app.js"></script>
 </body>
 </html>
