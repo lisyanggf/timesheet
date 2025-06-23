@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.0 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.1 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1151,6 +1151,57 @@ function clearForm() {
     }
 }
 
+// 載入基本資料到編輯頁面表單
+function loadBasicInfoToEditForm() {
+    const basicInfo = loadGlobalBasicInfo();
+    console.log('Loading basic info to edit form:', basicInfo);
+    
+    const employeeNameInput = document.getElementById('employeeName');
+    const employeeTypeSelect = document.getElementById('employeeType');
+    
+    if (basicInfo) {
+        if (employeeNameInput) {
+            employeeNameInput.value = basicInfo.employeeName || '';
+        }
+        if (employeeTypeSelect) {
+            employeeTypeSelect.value = basicInfo.employeeType || '';
+        }
+        console.log('Basic info loaded to edit form');
+    } else {
+        console.log('No basic info found');
+        if (employeeNameInput) employeeNameInput.value = '';
+        if (employeeTypeSelect) employeeTypeSelect.value = '';
+    }
+}
+
+// 從編輯頁面表單保存基本資料
+function saveBasicInfoFromEditForm() {
+    const employeeNameInput = document.getElementById('employeeName');
+    const employeeTypeSelect = document.getElementById('employeeType');
+    
+    if (!employeeNameInput || !employeeTypeSelect) {
+        alert('找不到基本資料表單欄位');
+        return;
+    }
+    
+    const employeeName = employeeNameInput.value.trim();
+    const employeeType = employeeTypeSelect.value;
+    
+    if (!employeeName || !employeeType) {
+        alert('請填寫完整的基本資料');
+        return;
+    }
+    
+    const basicInfo = {
+        employeeName: employeeName,
+        employeeType: employeeType
+    };
+    
+    saveGlobalBasicInfo(basicInfo);
+    console.log('Basic info saved from edit form:', basicInfo);
+    showSuccessMessage('基本資料已儲存');
+}
+
 // 渲染記錄表格
 function renderEntriesTable() {
     const params = new URLSearchParams(window.location.search);
@@ -1276,7 +1327,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.0 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.1 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1288,6 +1339,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof renderEntriesTable === 'function') {
             renderEntriesTable();
         }
+        
+        // 載入基本資料到編輯頁面表單
+        loadBasicInfoToEditForm();
         
         // 添加編輯頁面事件支持
         setTimeout(() => {
@@ -1374,6 +1428,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 cancelBtn.addEventListener('click', function() {
                     console.log('Cancel button clicked');
                     clearForm();
+                });
+            }
+            
+            // 編輯頁面基本資料保存按鈕事件
+            const basicInfoSaveBtn = document.getElementById('btn-save-basic-info');
+            if (basicInfoSaveBtn) {
+                console.log('Edit page basic info save button found, adding event listener');
+                basicInfoSaveBtn.addEventListener('click', function() {
+                    console.log('Edit page basic info save button clicked');
+                    saveBasicInfoFromEditForm();
                 });
             }
         }, 500);
