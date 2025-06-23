@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.6 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.7 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -138,6 +138,23 @@ function extractBasicInfoFromCSV(csvData) {
     };
 }
 
+// 顯示三選項對話框
+function showThreeChoiceDialog(message, option1, option2, option3) {
+    const choice = prompt(
+        `${message}\n\n` +
+        `請輸入選項號碼：\n` +
+        `1. ${option1}\n` +
+        `2. ${option2}\n` +
+        `3. ${option3}\n\n` +
+        `請輸入 1、2 或 3：`
+    );
+    
+    if (choice === '1') return 1;
+    if (choice === '2') return 2;
+    if (choice === '3') return 3;
+    return null; // 取消或無效輸入
+}
+
 // 處理基本資料匯入邏輯
 function handleBasicInfoImport(csvBasicInfo) {
     if (!csvBasicInfo || (!csvBasicInfo.employeeName && !csvBasicInfo.employeeType)) {
@@ -169,12 +186,36 @@ function handleBasicInfoImport(csvBasicInfo) {
     const typeConflict = csvType && currentType && csvType !== currentType;
     
     if (nameConflict || typeConflict) {
-        let conflictMessage = '發現基本資料不一致：\n\n';
-        conflictMessage += `本地資料：${currentName || '(空)'} - ${currentType || '(空)'}\n`;
-        conflictMessage += `CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}\n\n`;
-        conflictMessage += '基本資料將使用本地的，是否繼續匯入？';
+        const conflictMessage = 
+            '發現基本資料不一致：\n\n' +
+            `本地資料：${currentName || '(空)'} - ${currentType || '(空)'}\n` +
+            `CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}\n\n` +
+            '請選擇要使用的基本資料：';
         
-        return confirm(conflictMessage);
+        const choice = showThreeChoiceDialog(
+            conflictMessage,
+            `使用本地資料：${currentName || '(空)'} - ${currentType || '(空)'}`,
+            `使用CSV資料：${csvName || '(空)'} - ${csvType || '(空)'}`,
+            '取消匯入'
+        );
+        
+        if (choice === 1) {
+            // 使用本地資料
+            showSuccessMessage(`繼續使用本地基本資料：${currentName || '(無姓名)'} - ${currentType || '(無類型)'}`);
+            return true;
+        } else if (choice === 2) {
+            // 使用CSV資料
+            const newBasicInfo = {
+                employeeName: csvName || currentName,
+                employeeType: csvType || currentType
+            };
+            saveGlobalBasicInfo(newBasicInfo);
+            showSuccessMessage(`已更新為CSV基本資料：${csvName || '(無姓名)'} - ${csvType || '(無類型)'}`);
+            return true;
+        } else {
+            // 取消匯入
+            return false;
+        }
     }
     
     // Case 3: No conflicts or CSV has empty fields - fill in missing data
@@ -1402,7 +1443,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.6 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.7 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1693,22 +1734,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                 let successMessage = '';
                                 
                                 if (existingEntries.length > 0) {
-                                    // Ask user whether to append or overwrite
-                                    const choice = confirm(
-                                        `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n\n` +
-                                        `點擊「確定」= 附加模式（保留現有記錄）\n` +
-                                        `點擊「取消」= 覆寫模式（替換所有記錄）\n\n` +
-                                        `要附加到現有記錄嗎？`
+                                    // Ask user whether to append, overwrite, or cancel
+                                    const conflictMessage = `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n請選擇匯入方式：`;
+                                    
+                                    const choice = showThreeChoiceDialog(
+                                        conflictMessage,
+                                        `附加模式（保留現有 ${existingEntries.length} 筆，新增 ${updatedData.length} 筆）`,
+                                        `覆寫模式（刪除現有記錄，替換為 ${updatedData.length} 筆新記錄）`,
+                                        '取消匯入'
                                     );
                                     
-                                    if (choice) {
+                                    if (choice === 1) {
                                         // Append mode - keep existing and add new
                                         finalEntries = existingEntries.concat(updatedData);
                                         successMessage = `已附加 ${updatedData.length} 筆記錄到 ${targetWeekKey}（原有 ${existingEntries.length} 筆）`;
-                                    } else {
+                                    } else if (choice === 2) {
                                         // Overwrite mode - replace all
                                         finalEntries = updatedData;
                                         successMessage = `已覆寫 ${targetWeekKey} 的記錄（${updatedData.length} 筆新記錄）`;
+                                    } else {
+                                        // Cancel import
+                                        return;
                                     }
                                 } else {
                                     // No existing data, just import
@@ -1878,22 +1924,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                 let successMessage = '';
                                 
                                 if (existingEntries.length > 0) {
-                                    // Ask user whether to append or overwrite
-                                    const choice = confirm(
-                                        `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n\n` +
-                                        `點擊「確定」= 附加模式（保留現有記錄）\n` +
-                                        `點擊「取消」= 覆寫模式（替換所有記錄）\n\n` +
-                                        `要附加到現有記錄嗎？`
+                                    // Ask user whether to append, overwrite, or cancel
+                                    const conflictMessage = `目標週次 ${targetWeekKey} 已有 ${existingEntries.length} 筆記錄。\n請選擇匯入方式：`;
+                                    
+                                    const choice = showThreeChoiceDialog(
+                                        conflictMessage,
+                                        `附加模式（保留現有 ${existingEntries.length} 筆，新增 ${updatedData.length} 筆）`,
+                                        `覆寫模式（刪除現有記錄，替換為 ${updatedData.length} 筆新記錄）`,
+                                        '取消匯入'
                                     );
                                     
-                                    if (choice) {
+                                    if (choice === 1) {
                                         // Append mode - keep existing and add new
                                         finalEntries = existingEntries.concat(updatedData);
                                         successMessage = `已附加 ${updatedData.length} 筆記錄到 ${targetWeekKey}（原有 ${existingEntries.length} 筆）`;
-                                    } else {
+                                    } else if (choice === 2) {
                                         // Overwrite mode - replace all
                                         finalEntries = updatedData;
                                         successMessage = `已覆寫 ${targetWeekKey} 的記錄（${updatedData.length} 筆新記錄）`;
+                                    } else {
+                                        // Cancel import
+                                        return;
                                     }
                                 } else {
                                     // No existing data, just import
