@@ -596,7 +596,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.7 (2025-06-23) - Cache fixed');
+console.log('App.js initialized and running - Version 2.8 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -604,8 +604,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 檢查是否為首頁
     console.log('Current pathname:', window.location.pathname);
-    console.log('Is homepage check:', window.location.pathname === '/' || window.location.pathname.includes('index.html'));
-    if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
+    console.log('Is homepage check:', window.location.pathname === '/' || window.location.pathname.includes('index.html') || window.location.pathname.includes('timesheet'));
+    if (window.location.pathname === '/' || window.location.pathname.includes('index.html') || window.location.pathname.includes('timesheet')) {
         // 渲染卡片
         renderTimesheetCards();
         
