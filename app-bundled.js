@@ -584,7 +584,7 @@ window.createLastWeekTimesheet = createLastWeekTimesheet;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.6 (2025-06-23) - Debug mode');
+console.log('App.js initialized and running - Version 2.6.1 (2025-06-23) - Cache busted');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
