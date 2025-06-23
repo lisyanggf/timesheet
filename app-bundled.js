@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.11.4 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.11.5 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -996,14 +996,14 @@ function copyEntry(entryId) {
         const newEntry = { ...entry };
         delete newEntry.id; // Remove ID so it gets a new one
         
-        // 智能日期調整：如果不是週六，自動加一天
+        // 智能日期調整：週一到週四加一天，週五到週日保持原日期
         if (newEntry.date || newEntry.Date) {
             const currentDate = new Date(newEntry.date || newEntry.Date);
             if (!isNaN(currentDate.getTime())) {
-                const dayOfWeek = currentDate.getDay(); // 0=Sunday, 6=Saturday
+                const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
                 
-                // 如果不是週六（6），就加一天
-                if (dayOfWeek !== 6) {
+                // 只有週一(1)到週四(4)才加一天，避免跳到需要核準的週六日
+                if (dayOfWeek >= 1 && dayOfWeek <= 4) {
                     const nextDate = new Date(currentDate);
                     nextDate.setDate(currentDate.getDate() + 1);
                     
@@ -1019,13 +1019,15 @@ function copyEntry(entryId) {
                         if (newEntry.date) newEntry.date = newDateStr;
                         if (newEntry.Date) newEntry.Date = newDateStr;
                         
-                        console.log(`Date adjusted for copy: ${formatDate(currentDate)} -> ${newDateStr}`);
+                        const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+                        console.log(`Date adjusted for copy: ${formatDate(currentDate)}(${dayNames[dayOfWeek]}) -> ${newDateStr}(${dayNames[nextDate.getDay()]})`);
                     } else {
                         // 加一天會跨週，保持原日期
                         console.log(`Date kept same (would cross week): ${formatDate(currentDate)}`);
                     }
                 } else {
-                    console.log(`Date kept same (Saturday): ${formatDate(currentDate)}`);
+                    const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+                    console.log(`Date kept same (${dayNames[dayOfWeek]} - avoid weekend): ${formatDate(currentDate)}`);
                 }
             }
         }
@@ -1400,7 +1402,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.11.4 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.11.5 (2025-06-23) - Path fixed');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
