@@ -153,8 +153,8 @@
             console.log('🔄 Running fallback initialization...');
             
             // Basic button event listeners as fallback
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOM ready - setting up basic fallback listeners');
+            function setupFallbackListeners() {
+                console.log('Setting up basic fallback listeners');
                 
                 const basicInfoBtn = document.getElementById('btn-basic-info');
                 if (basicInfoBtn) {
@@ -186,13 +186,30 @@
                         }
                     });
                 }
-            });
+            }
+            
+            // Run immediately if DOM is ready, otherwise wait for DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupFallbackListeners);
+            } else {
+                setupFallbackListeners();
+            }
         };
+        
+        // Set timeout fallback in case module loading hangs
+        let moduleLoaded = false;
+        setTimeout(() => {
+            if (!moduleLoaded) {
+                console.log('⏰ Module loading timeout - activating fallback');
+                window.fallbackInit();
+            }
+        }, 3000);
         
         try {
             console.log('Attempting to import app.js...');
             import('/timesheet/app.js').then(() => {
                 console.log('✅ app.js loaded successfully');
+                moduleLoaded = true;
             }).catch(error => {
                 console.error('❌ Failed to load app.js:', error);
                 console.error('Error details:', error.message);
