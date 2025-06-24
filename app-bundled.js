@@ -2189,3 +2189,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Debug function for console testing
+window.debugProductCodes = async function() {
+    console.log('=== DEBUG PRODUCT CODES (BUNDLED VERSION) ===');
+    
+    try {
+        const allProducts = await fetchCSV('productcode.csv');
+        console.log('Total products loaded:', allProducts.length);
+        
+        const erpProducts = allProducts.filter(p => p.Zone === 'ERP');
+        console.log('ERP products count:', erpProducts.length);
+        
+        console.log('All ERP products:');
+        erpProducts.forEach((p, i) => {
+            console.log(`${i+1}. Module: "${p.Module}" | Product Module: "${p['Product Module']}"`);
+        });
+        
+        const a2a = erpProducts.find(p => p.Module && p.Module.includes('A2A'));
+        const b2b = erpProducts.find(p => p.Module && p.Module.includes('B2B'));
+        
+        console.log('A2A found:', a2a ? 'YES' : 'NO');
+        console.log('B2B found:', b2b ? 'YES' : 'NO');
+        
+        if (a2a) console.log('A2A data:', a2a);
+        if (b2b) console.log('B2B data:', b2b);
+        
+        return { total: allProducts.length, erp: erpProducts.length, a2a: !!a2a, b2b: !!b2b };
+    } catch (error) {
+        console.error('Error loading product codes:', error);
+        return { error: error.message };
+    }
+};
+
