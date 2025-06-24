@@ -127,6 +127,15 @@ export async function loadAllCSVData() {
             activities: activityTypeData.length
         });
         
+        // Debug: Check if problematic entries are loaded
+        const a2aInData = productCodeData.find(p => p.Module && p.Module.includes('A2A Integration'));
+        const b2bInData = productCodeData.find(p => p.Module && p.Module.includes('B2B Integration'));
+        console.log('[loadAllCSVData] A2A Integration in productCodeData:', a2aInData ? 'YES' : 'NO');
+        console.log('[loadAllCSVData] B2B Integration in productCodeData:', b2bInData ? 'YES' : 'NO');
+        
+        if (a2aInData) console.log('[loadAllCSVData] A2A data:', a2aInData);
+        if (b2bInData) console.log('[loadAllCSVData] B2B data:', b2bInData);
+        
         // 初始化完成後更新選項
         updateProjectOptions();
         updateActivityTypeOptions();
@@ -159,8 +168,24 @@ export function getPMByProject(projectName, zoneName = null) {
 
 // 根據 Zone 篩選產品模組
 export function getProductModulesByZone(zone) {
-    if (!zone || !productCodeData.length) return [];
-    return productCodeData.filter(product => product.Zone === zone);
+    if (!zone || !productCodeData.length) {
+        console.log('[getProductModulesByZone] Early return - zone:', zone, 'productCodeData.length:', productCodeData.length);
+        return [];
+    }
+    
+    const filtered = productCodeData.filter(product => product.Zone === zone);
+    console.log(`[getProductModulesByZone] Zone: "${zone}", Total products: ${productCodeData.length}, Filtered: ${filtered.length}`);
+    
+    // Debug: Check for specific problematic entries
+    const a2aProduct = filtered.find(p => p.Module && p.Module.includes('A2A Integration'));
+    const b2bProduct = filtered.find(p => p.Module && p.Module.includes('B2B Integration'));
+    console.log('[getProductModulesByZone] A2A Integration found:', a2aProduct ? 'YES' : 'NO');
+    console.log('[getProductModulesByZone] B2B Integration found:', b2bProduct ? 'YES' : 'NO');
+    
+    if (a2aProduct) console.log('[getProductModulesByZone] A2A data:', a2aProduct);
+    if (b2bProduct) console.log('[getProductModulesByZone] B2B data:', b2bProduct);
+    
+    return filtered;
 }
 
 // 更新專案選項
@@ -270,12 +295,33 @@ export function updateProductModuleDropdown(zone) {
     // 取得該 Zone 的產品模組
     const productModules = getProductModulesByZone(zone);
     
-    productModules.forEach(product => {
+    console.log(`[updateProductModuleDropdown] Zone: "${zone}", Products to add: ${productModules.length}`);
+    
+    productModules.forEach((product, index) => {
         const option = document.createElement('option');
-        option.value = product['Product Module'];
-        option.textContent = product['Product Module'];
+        const productModuleValue = product['Product Module'];
+        
+        console.log(`[updateProductModuleDropdown] Adding option ${index + 1}: "${productModuleValue}"`);
+        
+        // Check for problematic entries
+        if (productModuleValue && (productModuleValue.includes('A2A Integration') || productModuleValue.includes('B2B Integration'))) {
+            console.log(`[updateProductModuleDropdown] *** Adding problematic entry: "${productModuleValue}"`);
+        }
+        
+        option.value = productModuleValue;
+        option.textContent = productModuleValue;
         productModuleSelect.appendChild(option);
     });
+    
+    console.log(`[updateProductModuleDropdown] Final dropdown has ${productModuleSelect.options.length} options`);
+    
+    // Debug: List all options in the dropdown
+    for (let i = 0; i < productModuleSelect.options.length; i++) {
+        const option = productModuleSelect.options[i];
+        if (option.value && (option.value.includes('A2A Integration') || option.value.includes('B2B Integration'))) {
+            console.log(`[updateProductModuleDropdown] *** Dropdown contains: "${option.value}"`);
+        }
+    }
 }
 
 // 更新活動類型選項
