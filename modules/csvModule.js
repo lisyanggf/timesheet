@@ -379,6 +379,31 @@ export function generateCSVContent(entries) {
     ).join('\n');
 }
 
+// Debug function for console testing
+window.debugProductCodes = function() {
+    console.log('=== DEBUG PRODUCT CODES ===');
+    console.log('productCodeData length:', productCodeData.length);
+    
+    const erpProducts = productCodeData.filter(p => p.Zone === 'ERP');
+    console.log('ERP products count:', erpProducts.length);
+    
+    console.log('All ERP products:');
+    erpProducts.forEach((p, i) => {
+        console.log(`${i+1}. "${p.Module}" | "${p['Product Module']}"`);
+    });
+    
+    const a2a = erpProducts.find(p => p.Module && p.Module.includes('A2A'));
+    const b2b = erpProducts.find(p => p.Module && p.Module.includes('B2B'));
+    
+    console.log('A2A found:', a2a ? 'YES' : 'NO');
+    console.log('B2B found:', b2b ? 'YES' : 'NO');
+    
+    if (a2a) console.log('A2A data:', a2a);
+    if (b2b) console.log('B2B data:', b2b);
+    
+    return { total: productCodeData.length, erp: erpProducts.length, a2a: !!a2a, b2b: !!b2b };
+};
+
 // 下載CSV檔案
 export function downloadCSVFile(csvContent, filename) {
     try {
