@@ -16,7 +16,7 @@ export function parseCSV(text) {
         return [];
     }
     
-    // 解析 CSV 行，支援引號包圍的欄位
+    // 解析 CSV 行，正確處理引號包圍的欄位
     function parseCSVLine(line) {
         const result = [];
         let current = '';
@@ -28,18 +28,19 @@ export function parseCSV(text) {
             
             if (char === '"') {
                 if (inQuotes && nextChar === '"') {
-                    // 雙引號轉義
+                    // 雙引號轉義 - 加入一個引號字符
                     current += '"';
                     i++; // 跳過下一個引號
                 } else {
-                    // 切換引號狀態
+                    // 切換引號狀態，但不加入引號字符到結果中
                     inQuotes = !inQuotes;
                 }
             } else if (char === ',' && !inQuotes) {
-                // 在引號外的逗號才是分隔符
+                // 只有在引號外的逗號才是分隔符
                 result.push(current.trim());
                 current = '';
             } else {
+                // 普通字符直接加入
                 current += char;
             }
         }
@@ -50,14 +51,14 @@ export function parseCSV(text) {
     }
     
     try {
-        const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
+        const headers = parseCSVLine(lines[0]);
         console.log('[parseCSV] headers:', headers);
         
         const arr = lines.slice(1).map((line, index) => {
             if (!line.trim()) return null; // 跳過空行
             
             try {
-                const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
+                const values = parseCSVLine(line);
                 const obj = {};
                 
                 headers.forEach((h, i) => {
