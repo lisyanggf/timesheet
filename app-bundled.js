@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.1 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.2 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1162,9 +1162,37 @@ async function initProjectAndProductSelect(projectValue, productValue) {
     const productSelect = document.getElementById('productModule');
     if (productSelect) {
         if (selectedZone) {
-            productSelect.innerHTML = '<option value="">請選擇產品模組</option>' +
-                productList.map(p => `<option value="${p['Product Module']}">${p['Product Module']}</option>`).join('');
+            console.log(`[DEBUG] Populating product dropdown for zone: ${selectedZone}`);
+            console.log(`[DEBUG] productList length: ${productList.length}`);
+            
+            // Debug each product being added
+            const options = productList.map((p, index) => {
+                const productModule = p['Product Module'];
+                console.log(`[DEBUG] Adding option ${index + 1}: "${productModule}"`);
+                
+                // Special check for A2A and B2B
+                if (productModule && (productModule.includes('A2A') || productModule.includes('B2B'))) {
+                    console.log(`[DEBUG] *** Adding A2A/B2B option: "${productModule}"`);
+                }
+                
+                return `<option value="${productModule}">${productModule}</option>`;
+            });
+            
+            const fullHTML = '<option value="">請選擇產品模組</option>' + options.join('');
+            console.log(`[DEBUG] Final dropdown HTML length: ${fullHTML.length}`);
+            console.log(`[DEBUG] Total options to be added: ${options.length + 1}`);
+            
+            productSelect.innerHTML = fullHTML;
             productSelect.disabled = false;
+            
+            // Verify final dropdown state
+            console.log(`[DEBUG] Final dropdown has ${productSelect.options.length} options`);
+            for (let i = 0; i < productSelect.options.length; i++) {
+                const option = productSelect.options[i];
+                if (option.value && (option.value.includes('A2A') || option.value.includes('B2B'))) {
+                    console.log(`[DEBUG] *** Dropdown contains A2A/B2B: "${option.value}"`);
+                }
+            }
         } else {
             productSelect.innerHTML = '<option value="">點擊選擇區域</option>';
             productSelect.disabled = true;
@@ -1656,7 +1684,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.1 (2025-06-23) - Path fixed');
+console.log('App.js initialized and running - Version 2.12.2 (2025-06-24) - PM and dropdown fixes');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
