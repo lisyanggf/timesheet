@@ -286,14 +286,24 @@ window.initProjectAndProductSelect = async function(projectValue, productValue) 
 // 更新PM欄位函數
 window.updatePMField = async function() {
     const selectedProject = document.getElementById('project')?.value;
+    const selectedZone = document.getElementById('zone')?.value;
     const pmField = document.getElementById('pm');
     
-    console.log('updatePMField called, selectedProject:', selectedProject);
+    console.log('updatePMField called, selectedProject:', selectedProject, 'selectedZone:', selectedZone);
     
     if (selectedProject && pmField) {
         const projectList = await fetchCSV('projectcode.csv');
-        const project = projectList.find(p => p.Project === selectedProject);
-        console.log('Found project:', project);
+        
+        // 優先使用zone和project組合查找，如果沒有zone則使用原有邏輯
+        let project;
+        if (selectedZone) {
+            project = projectList.find(p => p.Project === selectedProject && p.Zone === selectedZone);
+            console.log('Found project by zone+project:', project);
+        } else {
+            project = projectList.find(p => p.Project === selectedProject);
+            console.log('Found project by project only:', project);
+        }
+        
         if (project && project.PM) {
             pmField.value = project.PM;
             console.log('PM field updated to:', project.PM);

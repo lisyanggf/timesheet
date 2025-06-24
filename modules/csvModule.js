@@ -142,8 +142,17 @@ export function getProjectsByZone(zone) {
     return projectCodeData.filter(project => project.Zone === zone);
 }
 
-// 根據專案取得專案經理
-export function getPMByProject(projectName) {
+// 根據專案和區域取得專案經理
+export function getPMByProject(projectName, zoneName = null) {
+    if (!projectName) return '';
+    
+    // 如果有提供區域，同時以專案和區域來查找
+    if (zoneName) {
+        const project = projectCodeData.find(p => p.Project === projectName && p.Zone === zoneName);
+        return project ? project.PM : '';
+    }
+    
+    // 如果沒有提供區域，使用原有邏輯（向後相容）
     const project = projectCodeData.find(p => p.Project === projectName);
     return project ? project.PM : '';
 }
@@ -211,11 +220,18 @@ export function updateProjectDropdown(zone) {
     newProjectSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const pmField = document.getElementById('pm');
+        const zoneField = document.getElementById('zone');
+        
         if (pmField && selectedOption && selectedOption.dataset.pm) {
             pmField.value = selectedOption.dataset.pm;
             console.log('PM updated via csvModule to:', selectedOption.dataset.pm);
         } else if (pmField) {
-            pmField.value = '';
+            // 使用更新後的getPMByProject函數，傳入zone和project
+            const selectedProject = this.value;
+            const selectedZone = zoneField ? zoneField.value : null;
+            const pm = getPMByProject(selectedProject, selectedZone);
+            pmField.value = pm;
+            console.log('PM updated via getPMByProject to:', pm);
         }
         
         // 也調用edit.html中的handleProjectChange函數（如果存在）
