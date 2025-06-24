@@ -16,38 +16,9 @@ export function parseCSV(text) {
         return [];
     }
     
-    // 解析 CSV 行，正確處理引號包圍的欄位
+    // 簡化的 CSV 解析 - 只使用逗號分隔，不處理引號
     function parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            const nextChar = line[i + 1];
-            
-            if (char === '"') {
-                if (inQuotes && nextChar === '"') {
-                    // 雙引號轉義 - 加入一個引號字符
-                    current += '"';
-                    i++; // 跳過下一個引號
-                } else {
-                    // 切換引號狀態，但不加入引號字符到結果中
-                    inQuotes = !inQuotes;
-                }
-            } else if (char === ',' && !inQuotes) {
-                // 只有在引號外的逗號才是分隔符
-                result.push(current.trim());
-                current = '';
-            } else {
-                // 普通字符直接加入
-                current += char;
-            }
-        }
-        
-        // 加入最後一個欄位
-        result.push(current.trim());
-        return result;
+        return line.split(',').map(field => field.trim().replace(/^"|"$/g, ''));
     }
     
     try {
