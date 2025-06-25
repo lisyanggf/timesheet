@@ -1730,7 +1730,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.5 (2025-06-25) - Enhanced weekday alignment with cross-month support');
+console.log('App.js initialized and running - Version 2.12.6 (2025-06-25) - Week start date alignment with all date fields support');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
