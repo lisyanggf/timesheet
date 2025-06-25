@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.10 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.11 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -105,23 +105,32 @@ function getWeekOffset(sourceWeekKey, targetWeekKey) {
     const sourceRange = getWeekDateRangeFromKey(sourceWeekKey);
     const targetRange = getWeekDateRangeFromKey(targetWeekKey);
     
+    const sourceStartDate = sourceRange.start.toISOString().split('T')[0];
+    const targetStartDate = targetRange.start.toISOString().split('T')[0];
+    
     // Calculate the difference in days between the start of each week
     const diffInMs = targetRange.start.getTime() - sourceRange.start.getTime();
     const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+    
+    console.log(`[週次計算] 來源週 ${sourceWeekKey} 起始日: ${sourceStartDate}`);
+    console.log(`[週次計算] 目標週 ${targetWeekKey} 起始日: ${targetStartDate}`);
+    console.log(`[週次計算] 偏移天數: ${diffInDays}天 (${targetStartDate} - ${sourceStartDate})`);
+    
     return diffInDays;
 }
 
-// 根據偏移量調整日期
+// 根據偏移量調整日期 (基於週起始日期差異)
 function shiftDateByOffset(dateStr, offsetDays) {
     const date = new Date(dateStr);
     const originalDate = formatDate(date);
     const originalDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
     
+    // 應用週起始日期偏移
     date.setDate(date.getDate() + offsetDays);
     const shiftedDate = formatDate(date);
     const shiftedDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
     
-    console.log(`[日期偏移] ${originalDate}(星期${originalDay}) + ${offsetDays}天 -> ${shiftedDate}(星期${shiftedDay})`);
+    console.log(`[日期偏移] 原始: ${originalDate}(星期${originalDay}) -> 目標: ${shiftedDate}(星期${shiftedDay}) [週起始偏移${offsetDays}天]`);
     return shiftedDate;
 }
 
@@ -1736,7 +1745,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.10 (2025-01-25T08:40:00Z)');
+console.log('App.js initialized and running - Version 2.12.11 (2025-01-25T08:42:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
