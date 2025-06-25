@@ -134,6 +134,64 @@
         </div>
     </div>
     
+    <!-- 自訂確認對話框 -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirm-title">確認</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="confirm-btn-yes" class="btn-primary">確定</button>
+                <button type="button" id="confirm-btn-no" class="btn-secondary">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CSV匯入目標週選擇模態框 -->
+    <div id="import-target-week-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>選擇匯入目標週次</h3>
+            </div>
+            <div class="modal-body">
+                <p>請選擇要將CSV資料匯入到哪一週：</p>
+                <div class="week-options">
+                    <div class="week-option">
+                        <input type="radio" name="importWeekOption" value="current" id="import-radio-current">
+                        <label for="import-radio-current">
+                            <div class="option-title">本週</div>
+                            <div class="option-subtitle" id="import-current-week-info">載入中...</div>
+                        </label>
+                    </div>
+                    <div class="week-option">
+                        <input type="radio" name="importWeekOption" value="last" id="import-radio-last">
+                        <label for="import-radio-last">
+                            <div class="option-title">上週</div>
+                            <div class="option-subtitle" id="import-last-week-info">載入中...</div>
+                        </label>
+                    </div>
+                    <div class="week-option">
+                        <input type="radio" name="importWeekOption" value="custom" id="import-radio-custom">
+                        <label for="import-radio-custom">
+                            <div class="option-title">自訂週次</div>
+                            <div class="option-subtitle">輸入特定週次 (如: 2024-W25)</div>
+                        </label>
+                    </div>
+                </div>
+                <div id="import-custom-week-input" style="display: none; margin-top: 16px;">
+                    <input type="text" id="import-custom-week-field" placeholder="請輸入週次 (YYYY-WNN)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="import-btn-confirm">確定匯入</button>
+                <button type="button" id="import-btn-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="last-week-container" class="last-week-container">
         <button id="btn-last-week" class="btn-last-week">建立上週工時表</button>
     </div>

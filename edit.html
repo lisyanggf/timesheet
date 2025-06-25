@@ -441,5 +441,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 </script>
+
+<!-- 自訂確認對話框 -->
+<div id="confirm-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="confirm-title">確認</h3>
+        </div>
+        <div class="modal-body">
+            <p id="confirm-message"></p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" id="confirm-btn-yes" class="btn-primary">確定</button>
+            <button type="button" id="confirm-btn-no" class="btn-secondary">取消</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

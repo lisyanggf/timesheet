@@ -79,9 +79,10 @@ export function renderTimesheetCards() {
     });
 
     document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const weekKey = btn.getAttribute('data-week');
-            if (confirm(`確定要刪除 ${weekKey} 的工時表嗎？`)) {
+            const confirmed = await customConfirm(`確定要刪除 ${weekKey} 的工時表嗎？`, '刪除工時表');
+            if (confirmed) {
                 const timesheets = loadAllTimesheets();
                 delete timesheets[weekKey];
                 saveAllTimesheets(timesheets);
@@ -195,12 +196,12 @@ export function showCopyOptionsModal(sourceWeekKey) {
     document.getElementById('copy-options-modal').style.display = 'block';
     
     // 綁定按鈕事件
-    document.getElementById('copy-btn-current').onclick = function() {
-        handleCopySelection(sourceWeekKey, currentWeekKey);
+    document.getElementById('copy-btn-current').onclick = async function() {
+        await handleCopySelection(sourceWeekKey, currentWeekKey);
     };
     
-    document.getElementById('copy-btn-last').onclick = function() {
-        handleCopySelection(sourceWeekKey, lastWeekKey);
+    document.getElementById('copy-btn-last').onclick = async function() {
+        await handleCopySelection(sourceWeekKey, lastWeekKey);
     };
     
     document.getElementById('copy-btn-custom').onclick = function() {
@@ -208,7 +209,7 @@ export function showCopyOptionsModal(sourceWeekKey) {
         document.getElementById('copy-custom-week-field').focus();
     };
     
-    document.getElementById('copy-btn-custom-confirm').onclick = function() {
+    document.getElementById('copy-btn-custom-confirm').onclick = async function() {
         const customWeekKey = document.getElementById('copy-custom-week-field').value.trim().toUpperCase();
         if (!customWeekKey) {
             alert('請輸入週次。');
@@ -221,7 +222,7 @@ export function showCopyOptionsModal(sourceWeekKey) {
             return;
         }
         
-        handleCopySelection(sourceWeekKey, customWeekKey);
+        await handleCopySelection(sourceWeekKey, customWeekKey);
     };
     
     document.getElementById('copy-btn-custom-cancel').onclick = function() {
@@ -242,7 +243,7 @@ export function closeCopyModal() {
 }
 
 // 處理複製選擇
-export function handleCopySelection(sourceWeekKey, targetWeekKey) {
+export async function handleCopySelection(sourceWeekKey, targetWeekKey) {
     // 顯示確認對話框
     const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
     const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
@@ -269,14 +270,15 @@ export function handleCopySelection(sourceWeekKey, targetWeekKey) {
                            `日期範圍：${targetStartDate} ~ ${targetEndDate}\n\n` +
                            `所有日期將自動調整為目標週對應日期。`;
     
-    if (confirm(confirmMessage)) {
-        copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
+    const confirmed = await customConfirm(confirmMessage, '複製工時記錄');
+    if (confirmed) {
+        await copyWeekToTargetWeek(sourceWeekKey, targetWeekKey);
         closeCopyModal();
     }
 }
 
 // 複製週工時
-export function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
+export async function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
     try {
         const timesheets = loadAllTimesheets();
         
@@ -335,7 +337,7 @@ export function copyWeekToTargetWeek(sourceWeekKey, targetWeekKey) {
         
         // 檢查目標週是否已存在
         if (timesheets[targetWeekKey]) {
-            const proceed = confirm(`目標週 ${targetWeekKey} 已有工時記錄，是否要覆蓋？`);
+            const proceed = await customConfirm(`目標週 ${targetWeekKey} 已有工時記錄，是否要覆蓋？`, '覆蓋確認');
             if (!proceed) {
                 return;
             }
@@ -443,5 +445,162 @@ export function hideWeekSelectionModal() {
     const modal = document.getElementById('week-selection-modal');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+// 自訂確認對話框
+export function customConfirm(message, title = '確認') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleElement = document.getElementById('confirm-title');
+        const messageElement = document.getElementById('confirm-message');
+        const yesButton = document.getElementById('confirm-btn-yes');
+        const noButton = document.getElementById('confirm-btn-no');
+        
+        if (!modal || !titleElement || !messageElement || !yesButton || !noButton) {
+            // 降級使用原生confirm
+            resolve(confirm(message));
+            return;
+        }
+        
+        // 設定標題和訊息
+        titleElement.textContent = title;
+        messageElement.textContent = message;
+        
+        // 顯示模態框
+        modal.style.display = 'block';
+        
+        // 綁定事件
+        const handleYes = () => {
+            modal.style.display = 'none';
+            yesButton.removeEventListener('click', handleYes);
+            noButton.removeEventListener('click', handleNo);
+            resolve(true);
+        };
+        
+        const handleNo = () => {
+            modal.style.display = 'none';
+            yesButton.removeEventListener('click', handleYes);
+            noButton.removeEventListener('click', handleNo);
+            resolve(false);
+        };
+        
+        yesButton.addEventListener('click', handleYes);
+        noButton.addEventListener('click', handleNo);
+        
+        // ESC鍵關閉
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', handleKeydown);
+                handleNo();
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+    });
+}
+
+// 顯示CSV匯入目標週選擇模態框
+export function showImportTargetWeekModal(csvData) {
+    const modal = document.getElementById('import-target-week-modal');
+    if (!modal) return;
+    
+    // 計算當前週、上週
+    const now = new Date();
+    const currentWeekNumber = getWeekNumber(now);
+    const currentYear = now.getFullYear();
+    const currentWeekKey = currentYear + '-W' + currentWeekNumber.toString().padStart(2, '0');
+    
+    // 計算上週
+    let lastWeekNumber = currentWeekNumber - 1;
+    let lastWeekYear = currentYear;
+    if (lastWeekNumber < 1) {
+        lastWeekYear = currentYear - 1;
+        const lastDayOfPreviousYear = new Date(lastWeekYear, 11, 31);
+        lastWeekNumber = getWeekNumber(lastDayOfPreviousYear);
+    }
+    const lastWeekKey = lastWeekYear + '-W' + lastWeekNumber.toString().padStart(2, '0');
+    
+    // 更新週次資訊
+    const currentWeekRange = getWeekDateRangeFromKey(currentWeekKey);
+    const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
+    
+    document.getElementById('import-current-week-info').textContent =
+        `${currentWeekKey} (${currentWeekRange.start.toISOString().split('T')[0]} ~ ${currentWeekRange.end.toISOString().split('T')[0]})`;
+    document.getElementById('import-last-week-info').textContent =
+        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
+    
+    // 預設選擇本週
+    document.getElementById('import-radio-current').checked = true;
+    
+    // 顯示模態框
+    modal.style.display = 'block';
+    
+    // 綁定事件
+    document.getElementById('import-radio-custom').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('import-custom-week-input').style.display = 'block';
+            document.getElementById('import-custom-week-field').focus();
+        }
+    });
+    
+    document.getElementById('import-radio-current').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('import-custom-week-input').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('import-radio-last').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('import-custom-week-input').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('import-btn-confirm').onclick = async function() {
+        const selectedOption = document.querySelector('input[name="importWeekOption"]:checked');
+        if (!selectedOption) {
+            alert('請選擇目標週次。');
+            return;
+        }
+        
+        let targetWeekKey;
+        if (selectedOption.value === 'current') {
+            targetWeekKey = currentWeekKey;
+        } else if (selectedOption.value === 'last') {
+            targetWeekKey = lastWeekKey;
+        } else if (selectedOption.value === 'custom') {
+            const customWeekKey = document.getElementById('import-custom-week-field').value.trim().toUpperCase();
+            if (!customWeekKey) {
+                alert('請輸入自訂週次。');
+                return;
+            }
+            
+            const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+            if (!weekKeyPattern.test(customWeekKey)) {
+                alert('無效的週次格式。請使用 YYYY-WNN 格式。');
+                return;
+            }
+            
+            targetWeekKey = customWeekKey;
+        }
+        
+        // 關閉模態框
+        modal.style.display = 'none';
+        
+        // 執行帶有日期偏移的匯入
+        await window.importWithDateOffset(csvData, targetWeekKey);
+    };
+    
+    document.getElementById('import-btn-cancel').onclick = function() {
+        modal.style.display = 'none';
+    };
+}
+
+// 關閉CSV匯入目標週選擇模態框
+export function closeImportTargetWeekModal() {
+    const modal = document.getElementById('import-target-week-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.getElementById('import-custom-week-input').style.display = 'none';
+        document.getElementById('import-custom-week-field').value = '';
     }
 }

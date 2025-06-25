@@ -4,7 +4,10 @@ import { getWeekNumber, getWeekDateRangeFromKey, formatDate, getWeekDateRange, g
 import {
     showSuccessMessage,
     showCopyOptionsModal,
-    closeCopyModal
+    closeCopyModal,
+    customConfirm,
+    showImportTargetWeekModal,
+    closeImportTargetWeekModal
 } from '/timesheet/modules/uiModule.js';
 
 console.log('App.js initialized and running - Version 2.2 (2025-06-23)');
@@ -387,16 +390,264 @@ function exportRawTimesheet(weekKey) {
     }
 }
 
+// 匯入工時表 - 第二步：執行帶有日期偏移的匯入
+window.importWithDateOffset = async function(csvData, targetWeekKey) {
+    try {
+        console.log('[import] 開始帶有日期偏移的匯入:', { csvData, targetWeekKey });
+        
+        // 檢查全域基本資料
+        let globalBasicInfo = loadGlobalBasicInfo();
+        let shouldCreateBasicInfo = false;
+        
+        if (!globalBasicInfo || !globalBasicInfo.employeeName) {
+            // 嘗試從CSV中提取基本資料
+            const firstRowWithName = csvData.find(row => {
+                const name = row.Name || row.name || row['姓名'] || '';
+                return name.trim() !== '';
+            });
+            
+            if (!firstRowWithName) {
+                alert('無法從CSV檔案中找到員工姓名，請確保 CSV 檔案包含 Name 欄位或先手動設定基本資料。');
+                return;
+            }
+            
+            const extractedName = (firstRowWithName.Name || firstRowWithName.name || firstRowWithName['姓名'] || '').trim();
+            const extractedType = (firstRowWithName.InternalOrOutsource || firstRowWithName.internalOrOutsource || firstRowWithName['內部外包'] || 'Internal').trim();
+            
+            const proceed = await customConfirm(
+                `ℹ️ 尚未設定全域基本資料\n\n` +
+                `系統將為您代入以下基本資料（從CSV檔案提取）：\n\n` +
+                `📝 員工姓名：${extractedName}\n` +
+                `🏢 員工類型：${extractedType}\n\n` +
+                `✓ 代入後將自動儲存為全域基本資料（全 App 共用）\n` +
+                `✓ 所有工時記錄將使用這些資料\n\n` +
+                `是否同意代入並繼續滙入？`,
+                '設定基本資料'
+            );
+            
+            if (!proceed) {
+                alert('滙入已取消。您可以先手動設定基本資料或確保CSV檔案包含正確的員工資料。');
+                return;
+            }
+            
+            // 創建全域基本資料
+            globalBasicInfo = {
+                employeeName: extractedName,
+                employeeType: extractedType
+            };
+            shouldCreateBasicInfo = true;
+        }
+        
+        // 檢查CSV中的員工姓名是否與全域設定一致
+        const csvEmployeeNames = new Set();
+        csvData.forEach(row => {
+            const name = row.Name || row.name || row['姓名'] || '';
+            if (name.trim()) {
+                csvEmployeeNames.add(name.trim());
+            }
+        });
+        
+        if (csvEmployeeNames.size > 0) {
+            const globalName = globalBasicInfo.employeeName.trim();
+            const differentNames = Array.from(csvEmployeeNames).filter(name => name !== globalName);
+            
+            if (differentNames.length > 0) {
+                const namesList = differentNames.join('、');
+                const proceed = await customConfirm(
+                    `警告：CSV檔案中的員工姓名與全域設定不一致！\n\n` +
+                    `全域設定：${globalName}\n` +
+                    `CSV中發現：${namesList}\n\n` +
+                    `滙入後，所有記錄的員工姓名將統一使用全域設定「${globalName}」。\n\n` +
+                    `是否繼續滙入？`,
+                    '姓名不一致警告'
+                );
+                
+                if (!proceed) {
+                    alert('滙入已取消。請檢查CSV檔案中的員工姓名或更新全域基本資料設定。');
+                    return;
+                }
+            }
+        }
+        
+        // 計算來源週和目標週的日期偏移
+        let sourceWeekKey = null;
+        let dateOffset = 0;
+        
+        // 從CSV數據中找到第一個有效日期來確定來源週
+        for (const row of csvData) {
+            const dateValue = row.Date || row.date || row['日期'] || row.Day;
+            if (dateValue) {
+                const dateStr = dateValue.toString().trim();
+                const dateFormats = [
+                    dateStr,
+                    dateStr.replace(/\//g, '-'),
+                    dateStr.replace(/\./g, '-')
+                ];
+                
+                for (const format of dateFormats) {
+                    const dateObj = new Date(format);
+                    if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() > 1900) {
+                        const year = dateObj.getFullYear();
+                        const weekNumber = getWeekNumber(dateObj);
+                        sourceWeekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+                        break;
+                    }
+                }
+                if (sourceWeekKey) break;
+            }
+        }
+        
+        if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
+            // 計算週次偏移（以天為單位）
+            const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+            const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
+            dateOffset = Math.floor((targetWeekRange.start - sourceWeekRange.start) / (1000 * 60 * 60 * 24));
+            console.log(`[import] 計算日期偏移: ${sourceWeekKey} -> ${targetWeekKey}, 偏移天數: ${dateOffset}`);
+        }
+        
+        // 處理CSV數據並應用日期偏移
+        const processedEntries = [];
+        const failedRows = [];
+        
+        csvData.forEach((row, index) => {
+            if (!row) return;
+            
+            // 檢查日期欄位
+            const dateValue = row.Date || row.date || row['日期'] || row.Day;
+            if (!dateValue) {
+                console.warn(`[import] 第${index + 1}筆記錄缺少日期欄位:`, row);
+                failedRows.push(`第${index + 1}筆記錄：缺少日期欄位`);
+                return;
+            }
+            
+            // 解析日期
+            let dateObj = null;
+            const dateStr = dateValue.toString().trim();
+            const dateFormats = [
+                dateStr,
+                dateStr.replace(/\//g, '-'),
+                dateStr.replace(/\./g, '-')
+            ];
+            
+            for (const format of dateFormats) {
+                dateObj = new Date(format);
+                if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() > 1900) {
+                    break;
+                }
+                dateObj = null;
+            }
+            
+            if (!dateObj || isNaN(dateObj.getTime())) {
+                console.warn(`[import] 第${index + 1}筆記錄日期格式無效:`, dateValue);
+                failedRows.push(`第${index + 1}筆記錄：日期格式無效 "${dateValue}"`);
+                return;
+            }
+            
+            // 應用日期偏移
+            if (dateOffset !== 0) {
+                dateObj.setDate(dateObj.getDate() + dateOffset);
+            }
+            
+            // 建立記錄物件
+            const entry = {
+                id: Date.now().toString(36) + Math.random().toString(36).substring(2) + index,
+                task: row.Task || row.task || row['任務描述'] || row['Task Description'] || '',
+                zone: row.Zone || row.zone || row['專案區域'] || '',
+                projectCode: row.ProjectCode || row.projectCode || row['專案編號'] || row['Project Code'] || '',
+                productModule: row.ProductModule || row.productModule || row['產品模組'] || row['Product Module'] || '',
+                activityType: row.ActivityType || row.activityType || row['活動類型'] || row['Activity Type'] || '',
+                ttlHours: parseFloat(row.TTL_Hours || row.ttlHours || row['總工時'] || 0) || 0,
+                regularHours: parseFloat(row.RegularHours || row.regularHours || row['正常工時'] || 0) || 0,
+                otHours: parseFloat(row.OTHours || row.otHours || row['加班工時'] || 0) || 0,
+                date: dateObj.toISOString().split('T')[0],
+                startDate: dateObj.toISOString().split('T')[0],
+                endDate: dateObj.toISOString().split('T')[0],
+                employeeName: globalBasicInfo.employeeName,
+                internalOrOutsource: globalBasicInfo.employeeType
+            };
+            
+            processedEntries.push(entry);
+            console.log(`[import] 成功處理第${index + 1}筆記錄:`, entry);
+        });
+        
+        if (processedEntries.length === 0) {
+            let errorMessage = '沒有成功處理任何記錄。';
+            if (failedRows.length > 0) {
+                errorMessage += '\n\n失敗原因：\n' + failedRows.join('\n');
+            }
+            alert(errorMessage);
+            return;
+        }
+        
+        // 儲存基本資料（如果需要）
+        if (shouldCreateBasicInfo) {
+            saveGlobalBasicInfo(globalBasicInfo);
+            console.log('[import] 已儲存全域基本資料:', globalBasicInfo);
+        }
+        
+        // 合併到目標週
+        const allTimesheets = loadAllTimesheets();
+        if (allTimesheets[targetWeekKey]) {
+            // 目標週已存在，合併記錄
+            const proceed = await customConfirm(
+                `目標週 ${targetWeekKey} 已有工時記錄，是否要合併匯入？\n\n` +
+                `現有記錄：${allTimesheets[targetWeekKey].length} 筆\n` +
+                `即將匯入：${processedEntries.length} 筆`,
+                '合併確認'
+            );
+            
+            if (!proceed) {
+                alert('匯入已取消。');
+                return;
+            }
+            
+            allTimesheets[targetWeekKey] = allTimesheets[targetWeekKey].concat(processedEntries);
+        } else {
+            // 新週次
+            allTimesheets[targetWeekKey] = processedEntries;
+        }
+        
+        // 儲存更新後的資料
+        saveAllTimesheets(allTimesheets);
+        
+        // 重新載入卡片
+        if (typeof renderTimesheetCards === 'function') {
+            renderTimesheetCards();
+        } else if (typeof window.renderTimesheetCards === 'function') {
+            window.renderTimesheetCards();
+        }
+        
+        // 顯示成功訊息
+        let successMessage = `✅ 匯入成功！\n\n`;
+        successMessage += `目標週次：${targetWeekKey}\n`;
+        successMessage += `成功匯入：${processedEntries.length} 筆記錄\n`;
+        
+        if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
+            successMessage += `來源週次：${sourceWeekKey}\n`;
+            successMessage += `日期偏移：${dateOffset} 天\n`;
+        }
+        
+        if (failedRows.length > 0) {
+            successMessage += `\n⚠️ ${failedRows.length} 筆記錄匯入失敗：\n${failedRows.join('\n')}`;
+        }
+        
+        alert(successMessage);
+        
+    } catch (error) {
+        console.error('[import] 匯入過程中發生錯誤:', error);
+        alert('❌ 匯入失敗：\n\n' + (error.message || '請檢查瀏覽器控制台獲取更多資訊。'));
+    }
+};
 
-// 匯入工時表（暫時只提示）
-function importTimesheet() {
+// 匯入工時表 - 第一步：解析CSV並顯示週次選擇
+async function importTimesheet() {
     const input = document.getElementById('import-file');
     input.value = ''; // 重置 input，避免同檔案無法重選
     input.onchange = async function (event) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function (e) {
+        reader.onload = async function (e) {
             const text = e.target.result;
             try {
                 console.log('[import] 原始CSV內容:', text);
@@ -416,37 +667,102 @@ function importTimesheet() {
                     return;
                 }
                 
-                // 檢查全域基本資料
-                let globalBasicInfo = loadGlobalBasicInfo();
-                let shouldCreateBasicInfo = false;
+                // 將解析後的資料保存到全局變量，供後續使用
+                window.pendingImportData = data;
                 
-                if (!globalBasicInfo || !globalBasicInfo.employeeName) {
-                    // 嘗試從CSV中提取基本資料
-                    const firstRowWithName = data.find(row => {
-                        const name = row.Name || row.name || row['姓名'] || '';
-                        return name.trim();
-                    });
-                    
-                    if (!firstRowWithName) {
-                        alert('無法從CSV檔案中找到員工姓名，請確保 CSV 檔案包含 Name 欄位或先手動設定基本資料。');
-                        return;
-                    }
-                    
-                    const extractedName = (firstRowWithName.Name || firstRowWithName.name || firstRowWithName['姓名'] || '').trim();
-                    const extractedType = (firstRowWithName.InternalOrOutsource || firstRowWithName.internalOrOutsource || firstRowWithName['內部外包'] || 'Internal').trim();
-                    
-                    const proceed = confirm(
-                        `ℹ️ 尚未設定全域基本資料\n\n` +
-                        `系統將為您代入以下基本資料（從CSV檔案提取）：\n\n` +
-                        `📝 員工姓名：${extractedName}\n` +
-                        `🏢 員工類型：${extractedType}\n\n` +
-                        `✓ 代入後將自動儲存為全域基本資料（全 App 共用）\n` +
-                        `✓ 所有工時記錄將使用這些資料\n\n` +
-                        `是否同意代入並繼續滙入？`
-                    );
-                    
-                    if (!proceed) {
-                        alert('滙入已取消。您可以先手動設定基本資料或確保CSV檔案包含正確的員工資料。');
+                // 顯示目標週選擇模態框
+                showImportTargetWeekModal(data);
+                
+            } catch (error) {
+                console.error('[import] CSV解析錯誤:', error);
+                alert('❌ CSV檔案解析失敗：\n\n' + (error.message || '請檢查檔案格式是否正確。'));
+            }
+        };
+        reader.readAsText(file, 'utf-8');
+    };
+    input.click();
+}
+
+// ==================== 首頁模態框功能 ====================
+
+// 顯示基本資料設定模態框
+function showBasicInfoModal() {
+    const modal = document.getElementById('basic-info-modal');
+    modal.style.display = 'block';
+    
+    // 載入現有資料
+    const basicInfo = loadGlobalBasicInfo();
+    if (basicInfo) {
+        document.getElementById('modal-employeeName').value = basicInfo.employeeName || '';
+        document.getElementById('modal-employeeType').value = basicInfo.employeeType || '';
+    }
+}
+
+// 隱藏基本資料設定模態框
+function hideBasicInfoModal() {
+    const modal = document.getElementById('basic-info-modal');
+    modal.style.display = 'none';
+    document.getElementById('modal-basic-info-form').reset();
+}
+
+// 儲存模態框中的基本資料
+function saveModalBasicInfo() {
+    const employeeName = document.getElementById('modal-employeeName').value.trim();
+    const employeeType = document.getElementById('modal-employeeType').value;
+    
+    if (!employeeName || !employeeType) {
+        alert('請填寫所有必填欄位');
+        return;
+    }
+    
+    const basicInfo = {
+        employeeName: employeeName,
+        employeeType: employeeType
+    };
+    
+    saveGlobalBasicInfo(basicInfo);
+    hideBasicInfoModal();
+    alert('基本資料儲存成功！');
+}
+
+// 新增工時表
+function newTimesheet() {
+    const modal = document.getElementById('week-selection-modal');
+    modal.style.display = 'block';
+    
+    // 載入週次選項資訊...
+    updateWeekOptions();
+}
+
+// 儲存基本資料（舊版函數）
+function saveBasicInfo() {
+    const employeeName = document.getElementById('employeeName').value.trim();
+    const employeeType = document.getElementById('employeeType').value;
+    
+    if (!employeeName || !employeeType) {
+        alert('請填寫所有必填欄位');
+        return;
+    }
+    
+    const basicInfo = {
+        employeeName: employeeName,
+        employeeType: employeeType
+    };
+    
+    saveGlobalBasicInfo(basicInfo);
+    alert('基本資料已儲存成功！（全 App 共用）');
+}
+
+// 初始化：頁面加載完成後渲染卡片，並綁定按鈕事件
+document.addEventListener('DOMContentLoaded', () => {
+    // 檢查是否為首頁
+    if (window.location.pathname === '/' || window.location.pathname.includes('index.html')) {
+        renderTimesheetCards();
+        
+        // 綁定全局按鈕事件
+        document.getElementById('btn-basic-info').addEventListener('click', showBasicInfoModal);
+        document.getElementById('btn-new').addEventListener('click', newTimesheet);
+        document.getElementById('btn-import').addEventListener('click', importTimesheet);
                         return;
                     }
                     
@@ -473,12 +789,13 @@ function importTimesheet() {
                     
                     if (differentNames.length > 0) {
                         const namesList = differentNames.join('、');
-                        const proceed = confirm(
+                        const proceed = await customConfirm(
                             `警告：CSV檔案中的員工姓名與全域設定不一致！\n\n` +
                             `全域設定：${globalName}\n` +
                             `CSV中發現：${namesList}\n\n` +
                             `滙入後，所有記錄的員工姓名將統一使用全域設定「${globalName}」。\n\n` +
-                            `是否繼續滙入？`
+                            `是否繼續滙入？`,
+                            '姓名不一致警告'
                         );
                         
                         if (!proceed) {
