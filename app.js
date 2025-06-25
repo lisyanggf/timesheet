@@ -10,7 +10,7 @@ import {
     closeImportTargetWeekModal
 } from '/timesheet/modules/uiModule.js';
 
-console.log('App.js initialized and running - Version 2.12.5 (2025-06-25)');
+console.log('App.js initialized and running - Version 2.12.6 (2025-06-25)');
 // 設置日期欄位的限制範圍
 function setDateFieldLimits(startDate, endDate) {
     const minDate = formatDate(startDate);
@@ -519,7 +519,7 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
         const processedEntries = [];
         const failedRows = [];
         
-        // 日期對齊處理函數
+        // 日期對齊處理函數（基於週起始日期偏移）
         const alignDateToTargetWeek = (originalDateValue, fieldName) => {
             if (!originalDateValue) return null;
             
@@ -544,42 +544,31 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
                 return null;
             }
             
-            // 應用日期偏移（按星期對齊，支持跨月）
+            // 應用日期偏移（基於週起始日期差異）
             if (sourceWeekRange && targetWeekRange) {
                 // 保存原始日期信息用於日誌
                 const originalDateStr = dateObj.toISOString().split('T')[0];
-                const originalDayOfWeek = dateObj.getDay();
                 
-                // 計算目標週對應的星期幾日期
-                const targetWeekStart = new Date(targetWeekRange.start);
-                const targetDate = new Date(targetWeekStart);
+                // 計算來源週和目標週的起始日期差異（以天為單位）
+                const sourceStart = new Date(sourceWeekRange.start);
+                const targetStart = new Date(targetWeekRange.start);
+                const daysDifference = Math.round((targetStart.getTime() - sourceStart.getTime()) / (1000 * 60 * 60 * 24));
                 
-                // 使用 setDate 添加天數，JavaScript 會自動處理跨月
-                targetDate.setDate(targetWeekStart.getDate() + originalDayOfWeek);
+                // 計算目標日期：原始日期 + 週起始日期差異
+                const targetDate = new Date(dateObj);
+                targetDate.setDate(dateObj.getDate() + daysDifference);
                 
-                // 驗證計算結果
-                const resultDayOfWeek = targetDate.getDay();
                 const resultDateStr = targetDate.toISOString().split('T')[0];
                 
-                // 轉換星期數字為中文顯示
-                const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+                console.log(`[import] ${fieldName}週起始對齊: ${originalDateStr} + ${daysDifference}天 -> ${resultDateStr}`);
+                console.log(`[import] 來源週起始: ${sourceStart.toISOString().split('T')[0]}, 目標週起始: ${targetStart.toISOString().split('T')[0]}`);
                 
-                // 驗證計算結果的星期和日期範圍
-                const isCorrectDayOfWeek = (resultDayOfWeek === originalDayOfWeek);
-                const isInTargetWeekRange = (targetDate >= targetWeekRange.start && targetDate <= targetWeekRange.end);
-                
-                if (isCorrectDayOfWeek && isInTargetWeekRange) {
-                    console.log(`[import] ${fieldName}對齊成功: ${originalDateStr} (星期${dayNames[originalDayOfWeek]}) -> ${resultDateStr} (星期${dayNames[resultDayOfWeek]})`);
-                    if (originalDateStr.split('-')[1] !== resultDateStr.split('-')[1]) {
-                        console.log(`[import] ${fieldName}跨月對齊: ${originalDateStr.split('-')[1]}月 -> ${resultDateStr.split('-')[1]}月`);
-                    }
-                    return targetDate;
-                } else {
-                    console.error(`[import] ${fieldName}對齊異常: ${originalDateStr} (星期${dayNames[originalDayOfWeek]}) -> ${resultDateStr} (星期${dayNames[resultDayOfWeek]})`);
-                    console.error(`[import] 星期匹配: ${isCorrectDayOfWeek}, 範圍正確: ${isInTargetWeekRange}`);
-                    // 如果計算有問題，保持原始日期
-                    return dateObj;
+                // 檢查是否跨月
+                if (originalDateStr.split('-')[1] !== resultDateStr.split('-')[1]) {
+                    console.log(`[import] ${fieldName}跨月處理: ${originalDateStr.split('-')[1]}月 -> ${resultDateStr.split('-')[1]}月`);
                 }
+                
+                return targetDate;
             }
             
             return dateObj;

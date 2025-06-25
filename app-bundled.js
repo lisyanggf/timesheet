@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.5 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.6 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -2001,10 +2001,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    console.log(`[import] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
+                                        // Process all three date fields
                                         if (newEntry.Date) {
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                        }
+                                        if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
+                                            const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
+                                            newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
+                                            newEntry.startDate = newEntry.StartDate;
+                                        }
+                                        if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
+                                            const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
+                                            newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
+                                            newEntry.endDate = newEntry.EndDate;
                                         }
                                         // Add unique ID for each entry
                                         newEntry.id = Date.now() + '_' + index;
@@ -2191,10 +2203,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    console.log(`[import] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
+                                        // Process all three date fields
                                         if (newEntry.Date) {
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                        }
+                                        if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
+                                            const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
+                                            newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
+                                            newEntry.startDate = newEntry.StartDate;
+                                        }
+                                        if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
+                                            const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
+                                            newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
+                                            newEntry.endDate = newEntry.EndDate;
                                         }
                                         // Add unique ID for each entry
                                         newEntry.id = Date.now() + '_' + index;
