@@ -10,7 +10,7 @@ import {
     closeImportTargetWeekModal
 } from '/timesheet/modules/uiModule.js';
 
-console.log('App.js initialized and running - Version 2.12.4 (2025-06-25)');
+console.log('App.js initialized and running - Version 2.12.5 (2025-06-25)');
 // 設置日期欄位的限制範圍
 function setDateFieldLimits(startDate, endDate) {
     const minDate = formatDate(startDate);
@@ -469,9 +469,8 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
             }
         }
         
-        // 計算來源週和目標週的日期偏移
+        // 檢測來源週
         let sourceWeekKey = null;
-        let dateOffset = 0;
         
         // 從CSV數據中找到第一個有效日期來確定來源週
         for (const row of csvData) {
@@ -497,32 +496,36 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
             }
         }
         
+        // 計算來源週和目標週的範圍（用於星期對齊）
+        let sourceWeekRange = null;
+        let targetWeekRange = null;
+        
         if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
-            // 計算週次偏移（以天為單位）
-            const sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
-            const targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
-            dateOffset = Math.floor((targetWeekRange.start - sourceWeekRange.start) / (1000 * 60 * 60 * 24));
-            console.log(`[import] 計算日期偏移: ${sourceWeekKey} -> ${targetWeekKey}, 偏移天數: ${dateOffset}`);
+            sourceWeekRange = getWeekDateRangeFromKey(sourceWeekKey);
+            targetWeekRange = getWeekDateRangeFromKey(targetWeekKey);
+            console.log(`[import] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}`);
+            console.log(`[import] 來源週範圍: ${sourceWeekRange.start.toISOString().split('T')[0]} (${sourceWeekRange.start.getMonth()+1}月) ~ ${sourceWeekRange.end.toISOString().split('T')[0]} (${sourceWeekRange.end.getMonth()+1}月)`);
+            console.log(`[import] 目標週範圍: ${targetWeekRange.start.toISOString().split('T')[0]} (${targetWeekRange.start.getMonth()+1}月) ~ ${targetWeekRange.end.toISOString().split('T')[0]} (${targetWeekRange.end.getMonth()+1}月)`);
+            
+            // 檢查是否跨月
+            const isSourceCrossMonth = sourceWeekRange.start.getMonth() !== sourceWeekRange.end.getMonth();
+            const isTargetCrossMonth = targetWeekRange.start.getMonth() !== targetWeekRange.end.getMonth();
+            if (isSourceCrossMonth || isTargetCrossMonth) {
+                console.log(`[import] 跨月處理: 來源週跨月=${isSourceCrossMonth}, 目標週跨月=${isTargetCrossMonth}`);
+            }
         }
         
         // 處理CSV數據並應用日期偏移
         const processedEntries = [];
         const failedRows = [];
         
-        csvData.forEach((row, index) => {
-            if (!row) return;
-            
-            // 檢查日期欄位
-            const dateValue = row.Date || row.date || row['日期'] || row.Day;
-            if (!dateValue) {
-                console.warn(`[import] 第${index + 1}筆記錄缺少日期欄位:`, row);
-                failedRows.push(`第${index + 1}筆記錄：缺少日期欄位`);
-                return;
-            }
+        // 日期對齊處理函數
+        const alignDateToTargetWeek = (originalDateValue, fieldName) => {
+            if (!originalDateValue) return null;
             
             // 解析日期
             let dateObj = null;
-            const dateStr = dateValue.toString().trim();
+            const dateStr = originalDateValue.toString().trim();
             const dateFormats = [
                 dateStr,
                 dateStr.replace(/\//g, '-'),
@@ -538,14 +541,70 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
             }
             
             if (!dateObj || isNaN(dateObj.getTime())) {
-                console.warn(`[import] 第${index + 1}筆記錄日期格式無效:`, dateValue);
-                failedRows.push(`第${index + 1}筆記錄：日期格式無效 "${dateValue}"`);
+                return null;
+            }
+            
+            // 應用日期偏移（按星期對齊，支持跨月）
+            if (sourceWeekRange && targetWeekRange) {
+                // 保存原始日期信息用於日誌
+                const originalDateStr = dateObj.toISOString().split('T')[0];
+                const originalDayOfWeek = dateObj.getDay();
+                
+                // 計算目標週對應的星期幾日期
+                const targetWeekStart = new Date(targetWeekRange.start);
+                const targetDate = new Date(targetWeekStart);
+                
+                // 使用 setDate 添加天數，JavaScript 會自動處理跨月
+                targetDate.setDate(targetWeekStart.getDate() + originalDayOfWeek);
+                
+                // 驗證計算結果
+                const resultDayOfWeek = targetDate.getDay();
+                const resultDateStr = targetDate.toISOString().split('T')[0];
+                
+                // 轉換星期數字為中文顯示
+                const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+                
+                // 驗證計算結果的星期和日期範圍
+                const isCorrectDayOfWeek = (resultDayOfWeek === originalDayOfWeek);
+                const isInTargetWeekRange = (targetDate >= targetWeekRange.start && targetDate <= targetWeekRange.end);
+                
+                if (isCorrectDayOfWeek && isInTargetWeekRange) {
+                    console.log(`[import] ${fieldName}對齊成功: ${originalDateStr} (星期${dayNames[originalDayOfWeek]}) -> ${resultDateStr} (星期${dayNames[resultDayOfWeek]})`);
+                    if (originalDateStr.split('-')[1] !== resultDateStr.split('-')[1]) {
+                        console.log(`[import] ${fieldName}跨月對齊: ${originalDateStr.split('-')[1]}月 -> ${resultDateStr.split('-')[1]}月`);
+                    }
+                    return targetDate;
+                } else {
+                    console.error(`[import] ${fieldName}對齊異常: ${originalDateStr} (星期${dayNames[originalDayOfWeek]}) -> ${resultDateStr} (星期${dayNames[resultDayOfWeek]})`);
+                    console.error(`[import] 星期匹配: ${isCorrectDayOfWeek}, 範圍正確: ${isInTargetWeekRange}`);
+                    // 如果計算有問題，保持原始日期
+                    return dateObj;
+                }
+            }
+            
+            return dateObj;
+        };
+        
+        csvData.forEach((row, index) => {
+            if (!row) return;
+            
+            // 處理主要日期欄位
+            const primaryDateValue = row.Date || row.date || row['日期'] || row.Day;
+            if (!primaryDateValue) {
+                console.warn(`[import] 第${index + 1}筆記錄缺少主要日期欄位:`, row);
+                failedRows.push(`第${index + 1}筆記錄：缺少主要日期欄位`);
                 return;
             }
             
-            // 應用日期偏移
-            if (dateOffset !== 0) {
-                dateObj.setDate(dateObj.getDate() + dateOffset);
+            // 對齊三個日期欄位
+            const alignedDate = alignDateToTargetWeek(primaryDateValue, '主日期');
+            const alignedStartDate = alignDateToTargetWeek(row.StartDate || row.startDate || row['開始日期'] || primaryDateValue, '開始日期');
+            const alignedEndDate = alignDateToTargetWeek(row.EndDate || row.endDate || row['結束日期'] || primaryDateValue, '結束日期');
+            
+            if (!alignedDate) {
+                console.warn(`[import] 第${index + 1}筆記錄主要日期格式無效:`, primaryDateValue);
+                failedRows.push(`第${index + 1}筆記錄：主要日期格式無效 "${primaryDateValue}"`);
+                return;
             }
             
             // 建立記錄物件
@@ -559,9 +618,9 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
                 ttlHours: parseFloat(row.TTL_Hours || row.ttlHours || row['總工時'] || 0) || 0,
                 regularHours: parseFloat(row.RegularHours || row.regularHours || row['正常工時'] || 0) || 0,
                 otHours: parseFloat(row.OTHours || row.otHours || row['加班工時'] || 0) || 0,
-                date: dateObj.toISOString().split('T')[0],
-                startDate: dateObj.toISOString().split('T')[0],
-                endDate: dateObj.toISOString().split('T')[0],
+                date: alignedDate.toISOString().split('T')[0],
+                startDate: (alignedStartDate || alignedDate).toISOString().split('T')[0],
+                endDate: (alignedEndDate || alignedDate).toISOString().split('T')[0],
                 employeeName: globalBasicInfo.employeeName,
                 internalOrOutsource: globalBasicInfo.employeeType
             };
@@ -624,7 +683,7 @@ window.importWithDateOffset = async function(csvData, targetWeekKey) {
         
         if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
             successMessage += `來源週次：${sourceWeekKey}\n`;
-            successMessage += `日期偏移：${dateOffset} 天\n`;
+            successMessage += `日期對齊：按星期對應調整\n`;
         }
         
         if (failedRows.length > 0) {

@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.4 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.5 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1730,7 +1730,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.4 (2025-06-25) - CSV import with target week selection and date offset');
+console.log('App.js initialized and running - Version 2.12.5 (2025-06-25) - Enhanced weekday alignment with cross-month support');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
