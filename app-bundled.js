@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.8 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.9 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1732,7 +1732,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.8 (2025-06-25)');
+console.log('App.js initialized and running - Version 2.12.9 (2025-06-25)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -2003,7 +2003,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    console.log(`[CSV匯入] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         // Process all three date fields
@@ -2205,7 +2204,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    console.log(`[CSV匯入] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         // Process all three date fields
