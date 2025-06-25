@@ -1732,7 +1732,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log(`App.js initialized and running - Version 2.12.9 (${new Date().toISOString()})`);
+console.log('App.js initialized and running - Version 2.12.9 (2025-01-25T08:38:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
