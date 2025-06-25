@@ -1732,8 +1732,6 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.9 (2025-06-25)');
-
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
     
