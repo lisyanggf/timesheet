@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.9 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.10 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -115,9 +115,13 @@ function getWeekOffset(sourceWeekKey, targetWeekKey) {
 function shiftDateByOffset(dateStr, offsetDays) {
     const date = new Date(dateStr);
     const originalDate = formatDate(date);
+    const originalDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+    
     date.setDate(date.getDate() + offsetDays);
     const shiftedDate = formatDate(date);
-    console.log(`[日期偏移] ${originalDate} -> ${shiftedDate}`);
+    const shiftedDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+    
+    console.log(`[日期偏移] ${originalDate}(星期${originalDay}) + ${offsetDays}天 -> ${shiftedDate}(星期${shiftedDay})`);
     return shiftedDate;
 }
 
@@ -1732,7 +1736,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.9 (2025-01-25T08:38:00Z)');
+console.log('App.js initialized and running - Version 2.12.10 (2025-01-25T08:40:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -2003,6 +2007,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    console.log(`[CSV匯入] 開始日期偏移處理: ${sourceWeekKey} -> ${targetWeekKey} (偏移${weekOffset}天)`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         // Process all three date fields
@@ -2204,6 +2209,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
+                                    console.log(`[CSV匯入] 開始日期偏移處理: ${sourceWeekKey} -> ${targetWeekKey} (偏移${weekOffset}天)`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         // Process all three date fields
