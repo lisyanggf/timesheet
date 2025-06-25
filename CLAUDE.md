@@ -10,20 +10,14 @@ This is a Chinese timesheet management web application built with vanilla HTML, 
 
 ### Core Structure
 - **Frontend-only application**: No backend server, runs entirely in the browser
-- **Modular JavaScript**: Core functionality is split across multiple ES6 modules in the `modules/` directory
+- **Bundled JavaScript**: All functionality is consolidated into a single bundled file for GitHub Pages compatibility
 - **Data persistence**: Uses localStorage to store timesheet data and global employee information
 - **CSV integration**: Loads reference data from CSV files (project codes, product codes, activity types)
 
 ### Key Files
 - `index.html` - Main dashboard showing all timesheet cards
 - `edit.html` - Timesheet editing interface for individual weeks
-- `app.js` - Main application logic and entry points
-- `modules/` - Modular JavaScript files:
-  - `storageModule.js` - localStorage operations
-  - `csvModule.js` - CSV data loading and parsing
-  - `dateModule.js` - Date calculations and week number logic
-  - `formModule.js` - Form validation and data handling
-  - `uiModule.js` - UI operations and modal management
+- `app-bundled.js` - Complete application logic in a single bundled file (no ES6 modules for GitHub Pages compatibility)
 
 ### Data Model
 - **Week Keys**: Format `YYYY-Www` (e.g., "2024-W25")
@@ -71,10 +65,8 @@ The application expects these CSV files in the root directory:
 
 ## Common Development Patterns
 
-### Module Imports
-```javascript
-import { functionName } from './modules/moduleName.js';
-```
+### Bundled Application Structure
+All functionality is contained within `app-bundled.js` - no module imports needed.
 
 ### localStorage Operations
 ```javascript
