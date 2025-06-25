@@ -250,22 +250,31 @@ button:hover {
     margin: 0 auto;
 }
 
-.week-info {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
+/* 週資訊橫幅 */
+.week-info-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
     margin-bottom: 24px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.week-info {
+    text-align: center;
 }
 
 .week-info h2 {
+    font-size: 24px;
+    font-weight: 600;
     margin-bottom: 8px;
-    color: #2c3e50;
+    color: white;
 }
 
 #date-range {
-    color: #7f8c8d;
-    font-size: 14px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
 }
 
 /* 基本資料容器樣式 */

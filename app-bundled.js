@@ -378,6 +378,52 @@ function getWeekDateRangeFromKey(weekKey) {
 
 // ==================== UI 與卡片渲染 ====================
 
+// 初始化編輯頁面的週資訊顯示
+function initializeEditPageWeekInfo() {
+    const weekTitleElement = document.getElementById('week-title');
+    const dateRangeElement = document.getElementById('date-range');
+    
+    if (!weekTitleElement || !dateRangeElement) {
+        console.log('Week info elements not found in edit page');
+        return;
+    }
+    
+    // 從URL獲取當前週次
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentWeekKey = urlParams.get('week');
+    
+    // 如果URL沒有週次參數，使用當前週
+    if (!currentWeekKey) {
+        const today = new Date();
+        currentWeekKey = getWeekKeyFromDate(today);
+        console.log('No week parameter found, using current week:', currentWeekKey);
+    }
+    
+    // 解析週次並獲取日期範圍
+    try {
+        const weekRange = getWeekDateRangeFromKey(currentWeekKey);
+        const startStr = weekRange.start.toISOString().split('T')[0];
+        const endStr = weekRange.end.toISOString().split('T')[0];
+        
+        // 格式化顯示週次資訊
+        weekTitleElement.textContent = `工時表 - ${currentWeekKey}`;
+        dateRangeElement.textContent = `週期：${startStr} 至 ${endStr}`;
+        
+        console.log('Week info initialized:', currentWeekKey, startStr, 'to', endStr);
+        
+        // 同時更新頁面標題
+        const pageTitle = document.querySelector('header h1');
+        if (pageTitle) {
+            pageTitle.textContent = `編輯工時表 - ${currentWeekKey}`;
+        }
+        
+    } catch (error) {
+        console.error('Error initializing week info:', error);
+        weekTitleElement.textContent = `工時表 - ${currentWeekKey}`;
+        dateRangeElement.textContent = '日期範圍載入中...';
+    }
+}
+
 // 渲染工時表卡片
 function renderTimesheetCards() {
     const container = document.getElementById('timesheet-cards');
@@ -1693,6 +1739,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname.includes('edit.html')) {
         // 編輯頁面初始化
         console.log('Edit page detected, initializing...');
+        
+        // 初始化週資訊顯示
+        initializeEditPageWeekInfo();
+        
         if (typeof renderEntriesTable === 'function') {
             renderEntriesTable();
         }
