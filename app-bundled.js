@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.7 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.8 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -105,25 +105,19 @@ function getWeekOffset(sourceWeekKey, targetWeekKey) {
     const sourceRange = getWeekDateRangeFromKey(sourceWeekKey);
     const targetRange = getWeekDateRangeFromKey(targetWeekKey);
     
-    console.log(`[getWeekOffset] 來源週 ${sourceWeekKey}: ${sourceRange.start.toISOString().split('T')[0]} ~ ${sourceRange.end.toISOString().split('T')[0]}`);
-    console.log(`[getWeekOffset] 目標週 ${targetWeekKey}: ${targetRange.start.toISOString().split('T')[0]} ~ ${targetRange.end.toISOString().split('T')[0]}`);
-    
     // Calculate the difference in days between the start of each week
     const diffInMs = targetRange.start.getTime() - sourceRange.start.getTime();
     const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
-    
-    console.log(`[getWeekOffset] 計算結果: ${diffInDays}天偏移`);
     return diffInDays;
 }
 
 // 根據偏移量調整日期
 function shiftDateByOffset(dateStr, offsetDays) {
-    console.log(`[shiftDate] 輸入: ${dateStr}, 偏移: ${offsetDays}天`);
     const date = new Date(dateStr);
     const originalDate = formatDate(date);
     date.setDate(date.getDate() + offsetDays);
     const shiftedDate = formatDate(date);
-    console.log(`[shiftDate] 結果: ${originalDate} -> ${shiftedDate}`);
+    console.log(`[日期偏移] ${originalDate} -> ${shiftedDate}`);
     return shiftedDate;
 }
 
@@ -1738,7 +1732,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.7 (2025-06-25) - Enhanced date shifting logging');
+console.log('App.js initialized and running - Version 2.12.8 (2025-06-25)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -2009,25 +2003,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    console.log(`[import] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
-                                    console.log(`[import] 開始處理 ${csvData.length} 筆記錄的日期偏移...`);
+                                    console.log(`[CSV匯入] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
-                                        console.log(`[import] 處理第${index + 1}筆記錄:`, entry);
                                         const newEntry = { ...entry };
                                         // Process all three date fields
                                         if (newEntry.Date) {
-                                            console.log(`[import] 處理 Date 欄位: ${newEntry.Date}`);
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
                                         }
                                         if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
                                             const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
-                                            console.log(`[import] 處理 StartDate 欄位: ${startDateValue}`);
                                             newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
                                             newEntry.startDate = newEntry.StartDate;
                                         }
                                         if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
                                             const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
-                                            console.log(`[import] 處理 EndDate 欄位: ${endDateValue}`);
                                             newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
                                             newEntry.endDate = newEntry.EndDate;
                                         }
@@ -2216,25 +2205,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    console.log(`[import] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
-                                    console.log(`[import] 開始處理 ${csvData.length} 筆記錄的日期偏移...`);
+                                    console.log(`[CSV匯入] 週次對齊: ${sourceWeekKey} -> ${targetWeekKey}, 偏移: ${weekOffset}天`);
                                     updatedData = csvData.map((entry, index) => {
-                                        console.log(`[import] 處理第${index + 1}筆記錄:`, entry);
                                         const newEntry = { ...entry };
                                         // Process all three date fields
                                         if (newEntry.Date) {
-                                            console.log(`[import] 處理 Date 欄位: ${newEntry.Date}`);
                                             newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
                                         }
                                         if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
                                             const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
-                                            console.log(`[import] 處理 StartDate 欄位: ${startDateValue}`);
                                             newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
                                             newEntry.startDate = newEntry.StartDate;
                                         }
                                         if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
                                             const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
-                                            console.log(`[import] 處理 EndDate 欄位: ${endDateValue}`);
                                             newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
                                             newEntry.endDate = newEntry.EndDate;
                                         }
