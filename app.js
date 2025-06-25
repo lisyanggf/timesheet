@@ -10,7 +10,7 @@ import {
     closeImportTargetWeekModal
 } from '/timesheet/modules/uiModule.js';
 
-console.log('App.js initialized and running - Version 2.2 (2025-06-23)');
+console.log('App.js initialized and running - Version 2.12.4 (2025-06-25)');
 // 設置日期欄位的限制範圍
 function setDateFieldLimits(startDate, endDate) {
     const minDate = formatDate(startDate);
