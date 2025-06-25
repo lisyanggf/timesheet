@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Date Alignment</title>
+</head>
+<body>
+    <h1>Test CSV Import Date Alignment</h1>
+    <div id="test-results"></div>
+    
+    <script src="./app-bundled.js"></script>
+    <script>
+        // Test the date alignment functionality
+        function testDateAlignment() {
+            const results = document.getElementById('test-results');
+            
+            // Test week offset calculation
+            const sourceWeek = '2025-W24';  // Week 24 of 2025
+            const targetWeek = '2025-W25';  // Week 25 of 2025
+            
+            console.log('Testing week offset calculation...');
+            const offset = getWeekOffset(sourceWeek, targetWeek);
+            console.log(`Week offset from ${sourceWeek} to ${targetWeek}: ${offset} days`);
+            
+            // Test date shifting
+            const testDate = '2025-06-09';  // Monday of week 24
+            const shiftedDate = shiftDateByOffset(testDate, offset);
+            console.log(`Date shift: ${testDate} + ${offset} days = ${shiftedDate}`);
+            
+            // Get week ranges for verification
+            const sourceRange = getWeekDateRangeFromKey(sourceWeek);
+            const targetRange = getWeekDateRangeFromKey(targetWeek);
+            
+            console.log('Source week range:', sourceRange);
+            console.log('Target week range:', targetRange);
+            
+            results.innerHTML = `
+                <h2>Test Results:</h2>
+                <p><strong>Source Week:</strong> ${sourceWeek}</p>
+                <p><strong>Target Week:</strong> ${targetWeek}</p>
+                <p><strong>Week Offset:</strong> ${offset} days</p>
+                <p><strong>Test Date:</strong> ${testDate}</p>
+                <p><strong>Shifted Date:</strong> ${shiftedDate}</p>
+                <p><strong>Source Week Start:</strong> ${sourceRange.start.toISOString().split('T')[0]}</p>
+                <p><strong>Target Week Start:</strong> ${targetRange.start.toISOString().split('T')[0]}</p>
+                <p><strong>Expected Offset:</strong> ${Math.round((targetRange.start.getTime() - sourceRange.start.getTime()) / (1000 * 60 * 60 * 24))} days</p>
+            `;
+        }
+        
+        // Run test when page loads
+        window.addEventListener('load', testDateAlignment);
+    </script>
+</body>
+</html>
