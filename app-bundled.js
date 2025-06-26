@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.13 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.14 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -357,28 +357,57 @@ function getLastWeekKey() {
 // 計算週數（以週日為週首，YYYY-Www）
 function getWeekNumber(date) {
     const d = new Date(date);
+    const year = d.getFullYear();
+    
+    // Find Sunday of the week containing this date
     const sunday = new Date(d);
     sunday.setDate(d.getDate() - d.getDay());
-    const firstDay = new Date(d.getFullYear(), 0, 1);
-    const firstSunday = new Date(firstDay);
-    firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
+    
+    // Find the first Sunday of the year
+    const firstDayOfYear = new Date(year, 0, 1);
+    const firstSunday = new Date(firstDayOfYear);
+    const dayOfWeek = firstDayOfYear.getDay();
+    
+    if (dayOfWeek === 0) {
+        // January 1st is already Sunday
+        firstSunday.setDate(1);
+    } else {
+        // Find the first Sunday after January 1st
+        firstSunday.setDate(1 + (7 - dayOfWeek));
+    }
+    
+    // Calculate week number
     const diff = sunday - firstSunday;
     const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
     return weekNumber;
 }
 
-// 取得週次的日期範圍
+// 取得週次的日期範圍 (週日為第一天)
 function getWeekDateRange(weekNumber, year) {
     const firstDayOfYear = new Date(year, 0, 1);
     const firstSunday = new Date(firstDayOfYear);
-    firstSunday.setDate(firstDayOfYear.getDate() - firstDayOfYear.getDay());
+    
+    // Find the first Sunday of the year (week 1 starts on first Sunday)
+    const dayOfWeek = firstDayOfYear.getDay(); // 0=Sunday, 1=Monday, etc.
+    if (dayOfWeek === 0) {
+        // January 1st is already Sunday
+        firstSunday.setDate(1);
+    } else {
+        // Find the first Sunday after January 1st
+        firstSunday.setDate(1 + (7 - dayOfWeek));
+    }
+    
+    // Calculate the start date of the requested week
     const startDate = new Date(firstSunday);
     startDate.setDate(firstSunday.getDate() + (weekNumber - 1) * 7);
+    
+    // End date is Saturday (6 days after Sunday)
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
+    
     return {
-        start: startDate,
-        end: endDate
+        start: startDate,  // Sunday
+        end: endDate      // Saturday
     };
 }
 
@@ -1743,7 +1772,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.13 (2025-01-25T08:46:00Z)');
+console.log('App.js initialized and running - Version 2.12.14 (2025-01-25T08:48:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
