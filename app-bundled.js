@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.12 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.13 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1743,7 +1743,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.12 (2025-01-25T08:44:00Z)');
+console.log('App.js initialized and running - Version 2.12.13 (2025-01-25T08:46:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -2017,19 +2017,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     console.log(`[CSV匯入] 開始日期偏移處理: ${sourceWeekKey} -> ${targetWeekKey} (偏移${weekOffset}天)`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
-                                        // Process all three date fields
+                                        // Process all three date fields and map to internal field names
                                         if (newEntry.Date) {
-                                            newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                            const shiftedDate = shiftDateByOffset(newEntry.Date, weekOffset);
+                                            newEntry.Date = shiftedDate;
+                                            newEntry.date = shiftedDate; // Internal field name
                                         }
                                         if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
                                             const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
-                                            newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
-                                            newEntry.startDate = newEntry.StartDate;
+                                            const shiftedStartDate = shiftDateByOffset(startDateValue, weekOffset);
+                                            newEntry.StartDate = shiftedStartDate;
+                                            newEntry.startDate = shiftedStartDate; // Internal field name
                                         }
                                         if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
                                             const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
-                                            newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
-                                            newEntry.endDate = newEntry.EndDate;
+                                            const shiftedEndDate = shiftDateByOffset(endDateValue, weekOffset);
+                                            newEntry.EndDate = shiftedEndDate;
+                                            newEntry.endDate = shiftedEndDate; // Internal field name
                                         }
                                         // Add unique ID for each entry
                                         newEntry.id = Date.now() + '_' + index;
@@ -2219,19 +2223,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     console.log(`[CSV匯入] 開始日期偏移處理: ${sourceWeekKey} -> ${targetWeekKey} (偏移${weekOffset}天)`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
-                                        // Process all three date fields
+                                        // Process all three date fields and map to internal field names
                                         if (newEntry.Date) {
-                                            newEntry.Date = shiftDateByOffset(newEntry.Date, weekOffset);
+                                            const shiftedDate = shiftDateByOffset(newEntry.Date, weekOffset);
+                                            newEntry.Date = shiftedDate;
+                                            newEntry.date = shiftedDate; // Internal field name
                                         }
                                         if (newEntry.StartDate || newEntry.startDate || newEntry['開始日期']) {
                                             const startDateValue = newEntry.StartDate || newEntry.startDate || newEntry['開始日期'];
-                                            newEntry.StartDate = shiftDateByOffset(startDateValue, weekOffset);
-                                            newEntry.startDate = newEntry.StartDate;
+                                            const shiftedStartDate = shiftDateByOffset(startDateValue, weekOffset);
+                                            newEntry.StartDate = shiftedStartDate;
+                                            newEntry.startDate = shiftedStartDate; // Internal field name
                                         }
                                         if (newEntry.EndDate || newEntry.endDate || newEntry['結束日期']) {
                                             const endDateValue = newEntry.EndDate || newEntry.endDate || newEntry['結束日期'];
-                                            newEntry.EndDate = shiftDateByOffset(endDateValue, weekOffset);
-                                            newEntry.endDate = newEntry.EndDate;
+                                            const shiftedEndDate = shiftDateByOffset(endDateValue, weekOffset);
+                                            newEntry.EndDate = shiftedEndDate;
+                                            newEntry.endDate = shiftedEndDate; // Internal field name
                                         }
                                         // Add unique ID for each entry
                                         newEntry.id = Date.now() + '_' + index;
