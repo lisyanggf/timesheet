@@ -1280,6 +1280,75 @@ async function updatePMField() {
     }
 }
 
+// ==================== 活動類型驗證功能 ====================
+
+// 處理活動類型變更的驗證邏輯
+async function handleActivityTypeChange(activityType) {
+    console.log('[Activity Validation] Activity type changed to:', activityType);
+    
+    if (activityType === 'Admin / Training') {
+        // 自動設置 Admin 相關值
+        const zoneSelect = document.getElementById('zone');
+        const projectSelect = document.getElementById('project');
+        const productSelect = document.getElementById('productModule');
+        
+        // 設置 Zone 為 Admin
+        if (zoneSelect) {
+            zoneSelect.value = 'Admin';
+            console.log('[Activity Validation] Auto-set zone to Admin');
+            
+            // 觸發 zone change 事件以更新 project 和 product 選項
+            if (window.initProjectAndProductSelect) {
+                await window.initProjectAndProductSelect();
+            }
+        }
+        
+        // 設置 Project 為 Admin（等待 initProjectAndProductSelect 完成後）
+        setTimeout(() => {
+            if (projectSelect) {
+                projectSelect.value = 'Admin';
+                console.log('[Activity Validation] Auto-set project to Admin');
+                
+                // 更新 PM 欄位
+                if (window.updatePMField) {
+                    window.updatePMField();
+                }
+            }
+        }, 100);
+        
+        // 設置 Product Module 為 Non Product Non Product
+        setTimeout(() => {
+            if (productSelect) {
+                productSelect.value = 'Non Product Non Product';
+                console.log('[Activity Validation] Auto-set product module to Non Product Non Product');
+            }
+        }, 200);
+        
+        // 顯示提示訊息
+        alert('已自動設置:\n• 區域: Admin\n• 專案: Admin\n• 產品模組: Non Product Non Product');
+    }
+}
+
+// 檢查是否可以變更 Zone（當活動類型為 Admin / Training 時不允許）
+function validateZoneChange(newZone) {
+    const activityTypeSelect = document.getElementById('activityType');
+    const currentActivityType = activityTypeSelect?.value;
+    
+    if (currentActivityType === 'Admin / Training' && newZone !== 'Admin') {
+        alert('當活動類型為「Admin / Training」時，區域必須為「Admin」。\n如需變更區域，請先選擇其他活動類型。');
+        
+        // 將 Zone 重新設置為 Admin
+        const zoneSelect = document.getElementById('zone');
+        if (zoneSelect) {
+            zoneSelect.value = 'Admin';
+        }
+        
+        return false;
+    }
+    
+    return true;
+}
+
 // ==================== 編輯頁面功能 ====================
 
 // 編輯單個記錄
@@ -1734,6 +1803,8 @@ window.handleTableButtonClick = handleTableButtonClick;
 window.fetchCSV = fetchCSV;
 window.initProjectAndProductSelect = initProjectAndProductSelect;
 window.updatePMField = updatePMField;
+window.handleActivityTypeChange = handleActivityTypeChange;
+window.validateZoneChange = validateZoneChange;
 
 // ==================== 初始化 ====================
 
@@ -1778,6 +1849,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Zone select found, adding event listener');
                 zoneSelect.addEventListener('change', function() {
                     console.log('Zone changed to:', this.value);
+                    
+                    // 驗證是否可以變更 Zone
+                    if (!validateZoneChange(this.value)) {
+                        return; // 阻止變更
+                    }
+                    
                     // 触发项目和产品选单更新
                     if (window.initProjectAndProductSelect) {
                         console.log('Calling initProjectAndProductSelect after zone change');
@@ -1803,6 +1880,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.updatePMField();
                     }
                 });
+            }
+            
+            // 活動類型變更事件
+            const activityTypeSelect = document.getElementById('activityType');
+            if (activityTypeSelect) {
+                console.log('Activity type select found, adding event listener');
+                activityTypeSelect.addEventListener('change', function() {
+                    console.log('Activity type changed to:', this.value);
+                    handleActivityTypeChange(this.value);
+                });
+            } else {
+                console.log('Activity type select not found');
             }
             
             // 工時計算事件
