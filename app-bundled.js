@@ -185,9 +185,7 @@ function getWeekOffset(sourceWeekKey, targetWeekKey) {
     const diffInMs = targetRange.start.getTime() - sourceRange.start.getTime();
     const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
     
-    console.log(`[週次計算] 來源週 ${sourceWeekKey} 起始日: ${sourceStartDate}`);
-    console.log(`[週次計算] 目標週 ${targetWeekKey} 起始日: ${targetStartDate}`);
-    console.log(`[週次計算] 偏移天數: ${diffInDays}天 (${targetStartDate} - ${sourceStartDate})`);
+    
     
     return diffInDays;
 }
@@ -201,7 +199,7 @@ function shiftDateByOffset(dateStr, offsetDays) {
     date.setDate(date.getDate() + offsetDays);
     const shiftedDate = WeekUtils.formatDate(date);
     
-    console.log(`[日期偏移] ${originalDate} + ${offsetDays}天 -> ${shiftedDate}`);
+    
     return shiftedDate;
 }
 
@@ -210,13 +208,7 @@ function extractBasicInfoFromCSV(csvData) {
     if (csvData.length === 0) return null;
     
     const firstEntry = csvData[0];
-    console.log('Extracting basic info from first entry:', firstEntry);
     
-    // Try different field name variations
-    const employeeName = firstEntry.Name || firstEntry.name || firstEntry['Employee Name'] || firstEntry.employeeName || '';
-    const employeeType = firstEntry.InternalOrOutsource || firstEntry.employeeType || firstEntry['Internal/Outsource'] || firstEntry['Employee Type'] || '';
-    
-    console.log('Extracted basic info:', { employeeName, employeeType });
     
     return {
         employeeName: employeeName.trim(),
@@ -425,7 +417,6 @@ function initializeEditPageWeekInfo() {
     const dateRangeElement = document.getElementById('date-range');
     
     if (!weekTitleElement || !dateRangeElement) {
-        console.log('Week info elements not found in edit page');
         return;
     }
     
@@ -437,7 +428,6 @@ function initializeEditPageWeekInfo() {
     if (!currentWeekKey) {
         const today = new Date();
         currentWeekKey = WeekUtils.getWeekKeyFromDate(today);
-        console.log('No week parameter found, using current week:', currentWeekKey);
     }
     
     // 解析週次並獲取日期範圍
@@ -449,8 +439,6 @@ function initializeEditPageWeekInfo() {
         // 格式化顯示週次資訊
         weekTitleElement.textContent = `工時表 - ${currentWeekKey}`;
         dateRangeElement.textContent = `週期：${startStr} 至 ${endStr}`;
-        
-        console.log('Week info initialized:', currentWeekKey, startStr, 'to', endStr);
         
         // 同時更新頁面標題
         const pageTitle = document.querySelector('header h1');
@@ -998,16 +986,7 @@ function normalizeWorkHours(entries) {
         return sum + hours;
     }, 0);
     
-    console.log(`Total regular hours before normalization: ${totalRegularHours}`);
     
-    // 如果總正常工時不超過40小時，不需要正規化
-    if (totalRegularHours <= 40) {
-        console.log('No normalization needed (≤40 hours)');
-        return entries.map(entry => ({ ...entry })); // 回傳複本
-    }
-    
-    // 需要正規化：按比例分攤
-    console.log('Normalizing work hours (>40 hours)');
     const normalizationRatio = 40 / totalRegularHours;
     const excessHours = totalRegularHours - 40;
     
@@ -1030,7 +1009,7 @@ function normalizeWorkHours(entries) {
         const newOtHours = originalOtHours + hoursBecomeOT;
         const newTotalHours = normalizedRegularHours + newOtHours;
         
-        console.log(`Entry normalization: ${originalRegularHours}h regular -> ${normalizedRegularHours}h regular + ${hoursBecomeOT}h to OT`);
+        
         
         return {
             ...entry,
@@ -1047,29 +1026,7 @@ function normalizeWorkHours(entries) {
     
     if (roundedTotal < 40) {
         const difference = Math.round((40 - roundedTotal) * 100) / 100;
-        console.log(`Normalization shortfall: ${difference} hours, adding to last entry`);
         
-        // 找到最後一筆有正常工時的記錄
-        for (let i = normalizedEntries.length - 1; i >= 0; i--) {
-            if (parseFloat(normalizedEntries[i].regularHours) > 0) {
-                const currentRegular = parseFloat(normalizedEntries[i].regularHours);
-                const currentOT = parseFloat(normalizedEntries[i].otHours);
-                const adjustedRegular = Math.round((currentRegular + difference) * 100) / 100;
-                const adjustedOT = Math.round((currentOT - difference) * 100) / 100;
-                
-                normalizedEntries[i].regularHours = adjustedRegular;
-                normalizedEntries[i].otHours = adjustedOT;
-                normalizedEntries[i].ttlHours = Math.round((adjustedRegular + adjustedOT) * 100) / 100;
-                
-                console.log(`Adjusted last entry: +${difference}h regular, -${difference}h OT`);
-                break;
-            }
-        }
-    }
-    
-    // 驗證最終結果
-    const finalTotal = normalizedEntries.reduce((sum, entry) => sum + (parseFloat(entry.regularHours) || 0), 0);
-    console.log(`Final total regular hours: ${Math.round(finalTotal * 100) / 100} (target: 40)`);
     
     return normalizedEntries;
 }
