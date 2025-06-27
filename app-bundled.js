@@ -1972,7 +1972,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (sourceWeekKey && sourceWeekKey !== targetWeekKey) {
                                     // Calculate week offset and shift dates
                                     const weekOffset = getWeekOffset(sourceWeekKey, targetWeekKey);
-                                    console.log(`[CSV匯入] 開始日期偏移處理: ${sourceWeekKey} -> ${targetWeekKey} (偏移${weekOffset}天)`);
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
                                         // Process all three date fields and map to internal field names
@@ -1998,6 +1997,50 @@ document.addEventListener('DOMContentLoaded', function() {
                                         return newEntry;
                                     });
                                 } else {
+                                    // No date shifting needed, but still add IDs
+                                    updatedData = csvData.map((entry, index) => ({
+                                        ...entry,
+                                        id: Date.now() + '_' + index
+                                    }));
+                                }
+
+                                // Ask user how to handle existing data
+                                if (timesheets[targetWeekKey] && timesheets[targetWeekKey].length > 0) {
+                                    const choice = await showThreeChoiceDialog(
+                                        `工時表 ${targetWeekKey} 已存在。請選擇匯入方式：`,
+                                        '覆蓋現有記錄',
+                                        '附加到現有記錄',
+                                        '取消匯入'
+                                    );
+
+                                    if (choice === 1) {
+                                        timesheets[targetWeekKey] = updatedData;
+                                        showSuccessMessage(`已成功覆蓋 ${targetWeekKey} 的工時記錄`);
+                                    } else if (choice === 2) {
+                                        timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
+                                        showSuccessMessage(`已成功附加到 ${targetWeekKey} 的工時記錄`);
+                                    } else {
+                                        return; // Cancel import
+                                    }
+                                } else {
+                                    timesheets[targetWeekKey] = updatedData;
+                                    showSuccessMessage(`已成功匯入到 ${targetWeekKey}`);
+                                }
+
+                                saveAllTimesheets(timesheets);
+                                renderTimesheetCards();
+                            }
+                        } catch (err) {
+                            console.error('Error processing CSV file:', err);
+                            alert('無法解析CSV檔案，請檢查檔案格式。');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+        }
+    }
+});
                                     // No date shifting needed, but still add IDs
                                     updatedData = csvData.map((entry, index) => {
                                         const newEntry = { ...entry };
