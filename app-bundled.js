@@ -1027,6 +1027,7 @@ function normalizeWorkHours(entries) {
     if (roundedTotal < 40) {
         const difference = Math.round((40 - roundedTotal) * 100) / 100;
         
+    }
     
     return normalizedEntries;
 }
