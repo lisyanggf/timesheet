@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.19 - Complete functionality without ES6 modules for GitHub Pages
+// Version 3.0.0 - Complete functionality with TPM Validation Dashboard
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -1834,7 +1834,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.19 (2025-06-27T21:30:00Z)');
+console.log('App.js initialized and running - Version 3.0.0 (2025-06-27T22:00:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
