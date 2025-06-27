@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPM Timesheet Validation Dashboard</title>
+    <link rel="stylesheet" href="./style.css">
+    <style>
+        .validation-dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .validation-panels {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .file-management-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .validation-results-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .file-upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        
+        .file-upload-area:hover {
+            border-color: #007bff;
+        }
+        
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .file-item.selected {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .file-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-pending { background-color: #ffc107; }
+        .status-validating { background-color: #17a2b8; }
+        .status-pass { background-color: #28a745; }
+        .status-fail { background-color: #dc3545; }
+        .status-error { background-color: #6c757d; }
+        
+        .validation-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid;
+        }
+        
+        .summary-card.total { border-left-color: #6c757d; }
+        .summary-card.pass { border-left-color: #28a745; }
+        .summary-card.fail { border-left-color: #dc3545; }
+        .summary-card.pending { border-left-color: #ffc107; }
+        
+        .detail-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .validation-rules-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .validation-rules-table th,
+        .validation-rules-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .validation-rules-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .rule-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .rule-pass {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .rule-fail {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .error-details {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="validation-dashboard">
+        <div class="dashboard-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <button onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer;">← 返回首頁</button>
+                <h1 style="margin: 0;">🛡️ TPM Timesheet Validation Dashboard</h1>
+                <div style="width: 80px;"></div> <!-- Spacer for alignment -->
+            </div>
+            <p>Comprehensive validation tool for timesheet CSV files with business rule compliance checking</p>
+        </div>
+        
+        <div class="validation-panels">
+            <!-- File Management Panel -->
+            <div class="file-management-panel">
+                <h3>📁 File Management</h3>
+                
+                <div class="file-upload-area" id="file-upload-area">
+                    <div>
+                        <i>📤</i>
+                        <p><strong>Drop CSV files here</strong></p>
+                        <p>or click to select multiple files</p>
+                        <input type="file" id="csv-file-input" multiple accept=".csv" style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="btn-select-files">Select Files</button>
+                    <button class="btn btn-success" id="btn-validate-all">Validate All</button>
+                    <button class="btn btn-danger" id="btn-clear-all">Clear All</button>
+                </div>
+                
+                <div class="file-list" id="file-list">
+                    <!-- Files will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Validation Results Panel -->
+            <div class="validation-results-panel">
+                <h3>📊 Validation Summary</h3>
+                
+                <div class="validation-summary">
+                    <div class="summary-card total">
+                        <h4 id="total-files">0</h4>
+                        <p>Total Files</p>
+                    </div>
+                    <div class="summary-card pass">
+                        <h4 id="pass-files">0</h4>
+                        <p>Passed</p>
+                    </div>
+                    <div class="summary-card fail">
+                        <h4 id="fail-files">0</h4>
+                        <p>Failed</p>
+                    </div>
+                    <div class="summary-card pending">
+                        <h4 id="pending-files">0</h4>
+                        <p>Pending</p>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="validation-progress" style="width: 0%"></div>
+                </div>
+                
+                <div id="overall-status" class="loading hidden">
+                    Ready to validate files...
+                </div>
+                
+                <div id="validation-status" style="text-align: center; padding: 10px; color: #6c757d; font-style: italic;">
+                    準備驗證檔案...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detailed Validation Results Panel -->
+        <div class="detail-panel" id="detail-panel">
+            <h3 id="detail-panel-title">🔍 Select a file to view detailed validation results</h3>
+            
+            <div id="detail-content" class="hidden">
+                <div class="file-info">
+                    <h4 id="selected-file-name">File Name</h4>
+                    <p id="selected-file-info">File information will appear here</p>
+                </div>
+                
+                <table class="validation-rules-table">
+                    <thead>
+                        <tr>
+                            <th>Validation Rule</th>
+                            <th>Status</th>
+                            <th>Issues Found</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="validation-results-tbody">
+                        <!-- Validation results will be dynamically populated here -->
+                    </tbody>
+                </table>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="btn-revalidate-file">Re-validate File</button>
+                    <button class="btn btn-danger" id="btn-remove-file">Remove File</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./app-bundled.js?v=2.12.19&t=1719325200"></script>
+    <script>
+        // ==================== TPM VALIDATION DASHBOARD ====================
+        console.log('🛡️ TPM Validation Dashboard loaded');
+        
+        // Global state management
+        let validationFiles = new Map(); // filename -> {file, status, results}
+        let referenceData = {
+            projects: [],
+            products: [],
+            activities: []
+        };
+        
+        // Load reference data on page load
+        async function loadReferenceData() {
+            try {
+                console.log('Loading reference data...');
+                
+                // Load project codes
+                const projectResponse = await fetch('projectcode.csv');
+                const projectText = await projectResponse.text();
+                referenceData.projects = parseCSVContent(projectText);
+                
+                // Load product codes  
+                const productResponse = await fetch('productcode.csv');
+                const productText = await productResponse.text();
+                referenceData.products = parseCSVContent(productText);
+                
+                // Load activity types
+                const activityResponse = await fetch('activityType.csv');
+                const activityText = await activityResponse.text();
+                referenceData.activities = parseCSVContent(activityText);
+                
+                console.log('Reference data loaded:', {
+                    projects: referenceData.projects.length,
+                    products: referenceData.products.length,
+                    activities: referenceData.activities.length
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('Error loading reference data:', error);
+                alert('無法載入參考資料檔案，請確認 CSV 檔案存在');
+                return false;
+            }
+        }
+        
+        // CSV parsing function (reuse from app-bundled.js logic)
+        function parseCSVContent(text) {
+            const cleanText = text.replace(/^\uFEFF/, '');
+            const lines = cleanText.trim().split(/\r?\n/);
+            if (lines.length < 2) return [];
+            
+            const headers = parseCSVLine(lines[0]);
+            
+            return lines.slice(1).map(line => {
+                if (!line.trim()) return null;
+                const fields = parseCSVLine(line);
+                const obj = {};
+                headers.forEach((h, i) => {
+                    obj[h] = fields[i] || '';
+                });
+                return obj;
+            }).filter(obj => obj !== null);
+        }
+        
+        // CSV line parsing function (from app-bundled.js)
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            let i = 0;
+            
+            while (i < line.length) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i += 2;
+                    } else {
+                        inQuotes = !inQuotes;
+                        i++;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                    i++;
+                } else {
+                    current += char;
+                    i++;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+        
+        // ==================== VALIDATION RULES ====================
+        
+        // 1. Required fields validation
+        function validateRequiredFields(entry, lineNumber) {
+            const requiredFields = ['Task', 'Activity Type', 'Zone', 'Project', 'Product Module', 'Regular Hours', 'Date'];
+            const errors = [];
+            
+            requiredFields.forEach(field => {
+                if (!entry[field] || String(entry[field]).trim() === '') {
+                    errors.push(`第 ${lineNumber} 行：缺少必填欄位 "${field}"`);
+                }
+            });
+            
+            return {
+                ruleName: '必填欄位檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查所有必填欄位是否有值'
+            };
+        }
+        
+        // 2. Date format validation
+        function validateDateFormat(entry, lineNumber) {
+            const errors = [];
+            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+            
+            // Check main date field
+            if (entry.Date && !datePattern.test(entry.Date)) {
+                errors.push(`第 ${lineNumber} 行：日期格式錯誤 "${entry.Date}"，應為 YYYY-MM-DD 格式`);
+            }
+            
+            // Check start date if exists
+            if (entry['Start Date'] && !datePattern.test(entry['Start Date'])) {
+                errors.push(`第 ${lineNumber} 行：開始日期格式錯誤 "${entry['Start Date']}"，應為 YYYY-MM-DD 格式`);
+            }
+            
+            // Check end date if exists
+            if (entry['End Date'] && !datePattern.test(entry['End Date'])) {
+                errors.push(`第 ${lineNumber} 行：結束日期格式錯誤 "${entry['End Date']}"，應為 YYYY-MM-DD 格式`);
+            }
+            
+            return {
+                ruleName: '日期格式檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查日期是否符合 YYYY-MM-DD 格式'
+            };
+        }
+        
+        // 3. Regular hours limitation (max 8 hours)
+        function validateRegularHours(entry, lineNumber) {
+            const errors = [];
+            const regularHours = parseFloat(entry['Regular Hours']) || 0;
+            
+            if (regularHours > 8) {
+                errors.push(`第 ${lineNumber} 行：正常工時 ${regularHours} 小時超過 8 小時限制`);
+            }
+            
+            if (regularHours < 0) {
+                errors.push(`第 ${lineNumber} 行：正常工時不能為負數 ${regularHours}`);
+            }
+            
+            return {
+                ruleName: '正常工時限制檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查正常工時是否超過 8 小時限制'
+            };
+        }
+        
+        // 4. Zone/Project relationship validation
+        function validateZoneProjectRelationship(entry, lineNumber) {
+            const errors = [];
+            const zone = entry.Zone;
+            const project = entry.Project;
+            
+            if (zone && project) {
+                const validProject = referenceData.projects.find(p => 
+                    p.Zone === zone && p.Project === project
+                );
+                
+                if (!validProject) {
+                    errors.push(`第 ${lineNumber} 行：Zone "${zone}" 與 Project "${project}" 的組合不存在於參考資料中`);
+                }
+            }
+            
+            return {
+                ruleName: 'Zone/Project 關係檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查 Zone 和 Project 的組合是否存在於 projectcode.csv 中'
+            };
+        }
+        
+        // 5. Zone/Product relationship validation
+        function validateZoneProductRelationship(entry, lineNumber) {
+            const errors = [];
+            const zone = entry.Zone;
+            const productModule = entry['Product Module'];
+            
+            if (zone && productModule) {
+                const validProduct = referenceData.products.find(p => 
+                    p.Zone === zone && p['Product Module'] === productModule
+                );
+                
+                if (!validProduct) {
+                    errors.push(`第 ${lineNumber} 行：Zone "${zone}" 與 Product Module "${productModule}" 的組合不存在於參考資料中`);
+                }
+            }
+            
+            return {
+                ruleName: 'Zone/Product 關係檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查 Zone 和 Product Module 的組合是否存在於 productcode.csv 中'
+            };
+        }
+        
+        // 6. Project/PM mapping validation
+        function validateProjectPMMapping(entry, lineNumber) {
+            const errors = [];
+            const project = entry.Project;
+            const zone = entry.Zone;
+            const pmField = entry.PM;
+            
+            if (project && zone) {
+                const projectData = referenceData.projects.find(p => 
+                    p.Zone === zone && p.Project === project
+                );
+                
+                if (projectData && projectData.PM && pmField) {
+                    if (projectData.PM !== pmField) {
+                        errors.push(`第 ${lineNumber} 行：Project "${project}" 的 PM 應為 "${projectData.PM}"，但填入 "${pmField}"`);
+                    }
+                }
+            }
+            
+            return {
+                ruleName: 'Project/PM 對應檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查 Project 和 PM 的對應關係是否正確'
+            };
+        }
+        
+        // 7. Admin/Training activity validation
+        function validateAdminTrainingActivity(entry, lineNumber) {
+            const errors = [];
+            const activityType = entry['Activity Type'];
+            const zone = entry.Zone;
+            const project = entry.Project;
+            const productModule = entry['Product Module'];
+            
+            if (activityType === 'Admin / Training') {
+                if (zone !== 'Admin') {
+                    errors.push(`第 ${lineNumber} 行：活動類型為 "Admin / Training" 時，Zone 必須為 "Admin"，但填入 "${zone}"`);
+                }
+                
+                if (project !== 'Admin') {
+                    errors.push(`第 ${lineNumber} 行：活動類型為 "Admin / Training" 時，Project 必須為 "Admin"，但填入 "${project}"`);
+                }
+                
+                if (productModule !== 'Non Product Non Product') {
+                    errors.push(`第 ${lineNumber} 行：活動類型為 "Admin / Training" 時，Product Module 必須為 "Non Product Non Product"，但填入 "${productModule}"`);
+                }
+            }
+            
+            return {
+                ruleName: 'Admin/Training 活動類型檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查 Admin/Training 活動類型的 Zone/Project/Product 設定是否正確'
+            };
+        }
+        
+        // 8. Activity type validation
+        function validateActivityType(entry, lineNumber) {
+            const errors = [];
+            const activityType = entry['Activity Type'];
+            
+            if (activityType) {
+                const validActivity = referenceData.activities.find(a => 
+                    a['Activity Type'] === activityType
+                );
+                
+                if (!validActivity) {
+                    errors.push(`第 ${lineNumber} 行：活動類型 "${activityType}" 不存在於參考資料中`);
+                }
+            }
+            
+            return {
+                ruleName: '活動類型檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查活動類型是否存在於 activityType.csv 中'
+            };
+        }
+        
+        // 9. Numeric validation for hours
+        function validateNumericFields(entry, lineNumber) {
+            const errors = [];
+            
+            // Regular Hours validation
+            const regularHours = entry['Regular Hours'];
+            if (regularHours && isNaN(parseFloat(regularHours))) {
+                errors.push(`第 ${lineNumber} 行：正常工時 "${regularHours}" 不是有效數字`);
+            }
+            
+            // OT Hours validation
+            const otHours = entry['OT Hours'];
+            if (otHours && isNaN(parseFloat(otHours))) {
+                errors.push(`第 ${lineNumber} 行：加班工時 "${otHours}" 不是有效數字`);
+            }
+            
+            // TTL Hours validation
+            const ttlHours = entry['TTL_Hours'];
+            if (ttlHours && isNaN(parseFloat(ttlHours))) {
+                errors.push(`第 ${lineNumber} 行：總工時 "${ttlHours}" 不是有效數字`);
+            }
+            
+            return {
+                ruleName: '數字欄位格式檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查工時欄位是否為有效數字'
+            };
+        }
+        
+        // Master validation function
+        async function validateCSVFile(file) {
+            try {
+                console.log(`🔍 開始驗證檔案: ${file.name}`);
+                
+                const text = await file.text();
+                const entries = parseCSVContent(text);
+                
+                if (entries.length === 0) {
+                    return {
+                        fileName: file.name,
+                        status: 'error',
+                        totalEntries: 0,
+                        passedRules: 0,
+                        failedRules: 0,
+                        overallResult: 'FAIL',
+                        validationResults: [],
+                        summary: '檔案為空或格式錯誤'
+                    };
+                }
+                
+                console.log(`📊 解析了 ${entries.length} 筆記錄`);
+                
+                const validationResults = [];
+                let totalPassed = 0;
+                let totalFailed = 0;
+                
+                // Run all validation rules for all entries
+                entries.forEach((entry, index) => {
+                    const lineNumber = index + 2; // +2 because of header row and 0-based index
+                    
+                    const rules = [
+                        validateRequiredFields(entry, lineNumber),
+                        validateDateFormat(entry, lineNumber),
+                        validateRegularHours(entry, lineNumber),
+                        validateZoneProjectRelationship(entry, lineNumber),
+                        validateZoneProductRelationship(entry, lineNumber),
+                        validateProjectPMMapping(entry, lineNumber),
+                        validateAdminTrainingActivity(entry, lineNumber),
+                        validateActivityType(entry, lineNumber),
+                        validateNumericFields(entry, lineNumber)
+                    ];
+                    
+                    rules.forEach(rule => {
+                        if (rule.passed) {
+                            totalPassed++;
+                        } else {
+                            totalFailed++;
+                        }
+                        
+                        const existingRule = validationResults.find(r => r.ruleName === rule.ruleName);
+                        if (existingRule) {
+                            existingRule.errors.push(...rule.errors);
+                            existingRule.passed = existingRule.passed && rule.passed;
+                        } else {
+                            validationResults.push({
+                                ruleName: rule.ruleName,
+                                description: rule.description,
+                                passed: rule.passed,
+                                errors: [...rule.errors]
+                            });
+                        }
+                    });
+                });
+                
+                const overallResult = totalFailed === 0 ? 'PASS' : 'FAIL';
+                
+                console.log(`✅ 驗證完成: ${file.name} - ${overallResult}`);
+                
+                return {
+                    fileName: file.name,
+                    status: 'completed',
+                    totalEntries: entries.length,
+                    passedRules: totalPassed,
+                    failedRules: totalFailed,
+                    overallResult: overallResult,
+                    validationResults: validationResults,
+                    summary: `共 ${entries.length} 筆記錄，${totalFailed} 個驗證錯誤`
+                };
+                
+            } catch (error) {
+                console.error(`❌ 驗證檔案 ${file.name} 時發生錯誤:`, error);
+                return {
+                    fileName: file.name,
+                    status: 'error',
+                    totalEntries: 0,
+                    passedRules: 0,
+                    failedRules: 0,
+                    overallResult: 'ERROR',
+                    validationResults: [],
+                    summary: `驗證時發生錯誤: ${error.message}`
+                };
+            }
+        }
+        
+        // ==================== UI MANAGEMENT ====================
+        
+        function updateSummaryCards() {
+            const totalFiles = validationFiles.size;
+            const passFiles = Array.from(validationFiles.values()).filter(f => f.status === 'completed' && f.results?.overallResult === 'PASS').length;
+            const failFiles = Array.from(validationFiles.values()).filter(f => f.status === 'completed' && f.results?.overallResult === 'FAIL').length;
+            const pendingFiles = Array.from(validationFiles.values()).filter(f => f.status === 'pending').length;
+            
+            document.getElementById('total-files').textContent = totalFiles;
+            document.getElementById('pass-files').textContent = passFiles;
+            document.getElementById('fail-files').textContent = failFiles;
+            document.getElementById('pending-files').textContent = pendingFiles;
+        }
+        
+        function updateFileList() {
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            
+            if (validationFiles.size === 0) {
+                fileList.innerHTML = '<p style="text-align: center; color: #6c757d;">尚未選擇檔案</p>';
+                return;
+            }
+            
+            validationFiles.forEach((fileData, fileName) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.onclick = () => selectFile(fileName);
+                
+                let statusClass = 'status-pending';
+                let statusText = '待驗證';
+                
+                if (fileData.status === 'validating') {
+                    statusClass = 'status-validating';
+                    statusText = '驗證中...';
+                } else if (fileData.status === 'completed') {
+                    if (fileData.results?.overallResult === 'PASS') {
+                        statusClass = 'status-pass';
+                        statusText = '通過';
+                    } else {
+                        statusClass = 'status-fail';
+                        statusText = '失敗';
+                    }
+                } else if (fileData.status === 'error') {
+                    statusClass = 'status-error';
+                    statusText = '錯誤';
+                }
+                
+                fileItem.innerHTML = `
+                    <div>
+                        <strong>${fileName}</strong>
+                        <br>
+                        <small>${fileData.results?.summary || '尚未驗證'}</small>
+                    </div>
+                    <div class="file-status">
+                        <span class="status-indicator ${statusClass}"></span>
+                        <span>${statusText}</span>
+                    </div>
+                `;
+                
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        function selectFile(fileName) {
+            // Remove previous selection
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Add selection to clicked item
+            event.currentTarget.classList.add('selected');
+            
+            const fileData = validationFiles.get(fileName);
+            showFileDetails(fileData);
+        }
+        
+        function showFileDetails(fileData) {
+            const detailPanel = document.getElementById('detail-panel');
+            const detailContent = document.getElementById('detail-content');
+            const title = document.getElementById('detail-panel-title');
+            
+            title.textContent = `🔍 ${fileData.fileName} 詳細驗證結果`;
+            
+            if (!fileData.results) {
+                detailContent.innerHTML = '<p>該檔案尚未完成驗證</p>';
+                detailContent.classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('selected-file-name').textContent = fileData.fileName;
+            document.getElementById('selected-file-info').textContent = 
+                `總記錄數: ${fileData.results.totalEntries} | 驗證結果: ${fileData.results.overallResult} | ${fileData.results.summary}`;
+            
+            const tbody = document.getElementById('validation-results-tbody');
+            tbody.innerHTML = '';
+            
+            fileData.results.validationResults.forEach(rule => {
+                const row = document.createElement('tr');
+                
+                const statusHtml = rule.passed 
+                    ? '<span class="rule-pass">✅ PASS</span>'
+                    : '<span class="rule-fail">❌ FAIL</span>';
+                
+                const issuesCount = rule.errors.length;
+                const issuesHtml = issuesCount > 0 
+                    ? `<span style="color: #dc3545; font-weight: bold;">${issuesCount} 個問題</span>`
+                    : '<span style="color: #28a745;">無問題</span>';
+                
+                const detailsHtml = rule.errors.length > 0 
+                    ? `<div class="error-details">${rule.errors.join('<br>')}</div>`
+                    : '';
+                
+                row.innerHTML = `
+                    <td>${rule.ruleName}</td>
+                    <td class="rule-status">${statusHtml}</td>
+                    <td>${issuesHtml}</td>
+                    <td>
+                        <small>${rule.description}</small>
+                        ${detailsHtml}
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            detailContent.classList.remove('hidden');
+        }
+        
+        // ==================== EVENT HANDLERS ====================
+        
+        async function handleFileSelection(files) {
+            console.log(`📁 選擇了 ${files.length} 個檔案`);
+            
+            for (const file of files) {
+                if (!file.name.toLowerCase().endsWith('.csv')) {
+                    alert(`檔案 "${file.name}" 不是 CSV 格式，已跳過`);
+                    continue;
+                }
+                
+                validationFiles.set(file.name, {
+                    file: file,
+                    fileName: file.name,
+                    status: 'pending',
+                    results: null
+                });
+            }
+            
+            updateFileList();
+            updateSummaryCards();
+        }
+        
+        async function validateAllFiles() {
+            const pendingFiles = Array.from(validationFiles.values()).filter(f => f.status === 'pending');
+            
+            if (pendingFiles.length === 0) {
+                alert('沒有待驗證的檔案');
+                return;
+            }
+            
+            console.log(`🚀 開始批次驗證 ${pendingFiles.length} 個檔案`);
+            
+            const totalFiles = pendingFiles.length;
+            let completedFiles = 0;
+            
+            for (const fileData of pendingFiles) {
+                // Update status to validating
+                fileData.status = 'validating';
+                updateFileList();
+                
+                // Perform validation
+                const results = await validateCSVFile(fileData.file);
+                
+                // Update results
+                fileData.status = results.status;
+                fileData.results = results;
+                
+                completedFiles++;
+                
+                // Update progress
+                const progress = (completedFiles / totalFiles) * 100;
+                document.getElementById('validation-progress').style.width = `${progress}%`;
+                
+                updateFileList();
+                updateSummaryCards();
+                
+                // Small delay to show progress
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            console.log('✅ 批次驗證完成');
+            alert('所有檔案驗證完成！');
+        }
+        
+        function clearAllFiles() {
+            if (validationFiles.size === 0) return;
+            
+            if (confirm(`確定要清除所有 ${validationFiles.size} 個檔案嗎？`)) {
+                validationFiles.clear();
+                updateFileList();
+                updateSummaryCards();
+                
+                // Hide detail panel
+                document.getElementById('detail-content').classList.add('hidden');
+                document.getElementById('detail-panel-title').textContent = '🔍 Select a file to view detailed validation results';
+                
+                // Reset progress
+                document.getElementById('validation-progress').style.width = '0%';
+            }
+        }
+        
+        // ==================== INITIALIZATION ====================
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📋 初始化 TPM 驗證儀表板...');
+            
+            // Load reference data first
+            const loaded = await loadReferenceData();
+            if (!loaded) {
+                document.getElementById('overall-status').textContent = '❌ 無法載入參考資料，請檢查 CSV 檔案';
+                document.getElementById('overall-status').classList.remove('hidden');
+                return;
+            }
+            
+            // Set up file upload
+            const fileInput = document.getElementById('csv-file-input');
+            const uploadArea = document.getElementById('file-upload-area');
+            
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelection(Array.from(e.target.files));
+                }
+            });
+            
+            // Drag and drop
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#007bff';
+            });
+            
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#ccc';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#ccc';
+                
+                const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.csv'));
+                if (files.length > 0) {
+                    handleFileSelection(files);
+                }
+            });
+            
+            // Button events
+            document.getElementById('btn-select-files').addEventListener('click', () => fileInput.click());
+            document.getElementById('btn-validate-all').addEventListener('click', validateAllFiles);
+            document.getElementById('btn-clear-all').addEventListener('click', clearAllFiles);
+            
+            console.log('✅ TPM 驗證儀表板初始化完成');
+        });
+    </script>
+</body>
+</html>

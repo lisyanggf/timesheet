@@ -2065,6 +2065,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        const tpmValidationBtn = document.getElementById('btn-tpm-validation');
+        console.log('TPM Validation button found:', !!tpmValidationBtn);
+        if (tpmValidationBtn) {
+            console.log('Adding event listener to TPM validation button');
+            tpmValidationBtn.addEventListener('click', function() {
+                console.log('TPM Validation button clicked!');
+                window.location.href = 'tpm-validator.html';
+            });
+        }
+        
         // 綁定基本資料模態框事件
         const saveModalBtn = document.getElementById('btn-save-modal-basic-info');
         if (saveModalBtn) {
