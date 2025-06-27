@@ -40,8 +40,8 @@
                 <p><strong>Week Offset:</strong> ${offset} days</p>
                 <p><strong>Test Date:</strong> ${testDate}</p>
                 <p><strong>Shifted Date:</strong> ${shiftedDate}</p>
-                <p><strong>Source Week Start:</strong> ${sourceRange.start.toISOString().split('T')[0]}</p>
-                <p><strong>Target Week Start:</strong> ${targetRange.start.toISOString().split('T')[0]}</p>
+                <p><strong>Source Week Start:</strong> ${formatDate(sourceRange.start)}</p>
+                <p><strong>Target Week Start:</strong> ${formatDate(targetRange.start)}</p>
                 <p><strong>Expected Offset:</strong> ${Math.round((targetRange.start.getTime() - sourceRange.start.getTime()) / (1000 * 60 * 60 * 24))} days</p>
             `;
         }

@@ -1,5 +1,5 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 2.12.14 - Complete functionality without ES6 modules for GitHub Pages
+// Version 2.12.15 - Complete functionality without ES6 modules for GitHub Pages
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -59,32 +59,105 @@ function saveWeekEntries(weekKey, entries) {
 
 // ==================== 日期與週次相關工具 ====================
 
-// 格式化日期為 YYYY-MM-DD（本地時間）
-function formatDate(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
-}
+const WeekUtils = {
+    // 格式化日期為 YYYY-MM-DD（本地時間）
+    formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    },
 
-// 取得本週的週次鍵值
-function getThisWeekKey() {
-    const today = new Date();
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() - today.getDay() + 1);
-    const year = thisMonday.getFullYear();
-    const weekNumber = getWeekNumber(thisMonday);
-    return year + '-W' + weekNumber.toString().padStart(2, '0');
-}
+    // 計算週數（以週日為週首，YYYY-Www）
+    getWeekNumber(date) {
+        const d = new Date(date);
+        // Find Sunday of the week containing this date. This is the week's representative day.
+        const sunday = new Date(d);
+        sunday.setDate(d.getDate() - d.getDay());
+        
+        const year = sunday.getFullYear(); // Use the year of the Sunday!
 
-// 從日期取得週次鍵值
-function getWeekKeyFromDate(date) {
-    const monday = new Date(date);
-    monday.setDate(date.getDate() - date.getDay() + 1);
-    const year = monday.getFullYear();
-    const weekNumber = getWeekNumber(monday);
-    return year + '-W' + weekNumber.toString().padStart(2, '0');
-}
+        // Find the first Sunday of that year
+        const firstDayOfYear = new Date(year, 0, 1);
+        const firstSunday = new Date(firstDayOfYear);
+        const dayOfWeek = firstDayOfYear.getDay();
+        
+        if (dayOfWeek !== 0) {
+            // Find the first Sunday on or after January 1st
+            firstSunday.setDate(1 + (7 - dayOfWeek) % 7);
+        }
+        
+        // Calculate week number
+        const diff = sunday.getTime() - firstSunday.getTime();
+        const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
+        return weekNumber;
+    },
+
+    // 取得週次的日期範圍 (週日為第一天)
+    getWeekDateRange(weekNumber, year) {
+        const firstDayOfYear = new Date(year, 0, 1);
+        const firstSunday = new Date(firstDayOfYear);
+        
+        // Find the first Sunday of the year (week 1 starts on first Sunday)
+        const dayOfWeek = firstDayOfYear.getDay(); // 0=Sunday, 1=Monday, etc.
+        if (dayOfWeek !== 0) {
+            firstSunday.setDate(1 + (7 - dayOfWeek) % 7);
+        }
+        
+        // Calculate the start date of the requested week
+        const startDate = new Date(firstSunday);
+        startDate.setDate(firstSunday.getDate() + (weekNumber - 1) * 7);
+        
+        // End date is Saturday (6 days after Sunday)
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        
+        return {
+            start: startDate,  // Sunday
+            end: endDate      // Saturday
+        };
+    },
+
+    // 從週次鍵值取得日期範圍
+    getWeekDateRangeFromKey(weekKey) {
+        const [year, week] = weekKey.split('-');
+        const weekNumber = parseInt(week.substring(1));
+        return this.getWeekDateRange(weekNumber, parseInt(year));
+    },
+
+    // 從日期取得週次鍵值
+    getWeekKeyFromDate(date) {
+        const d = new Date(date);
+        const sunday = new Date(d);
+        sunday.setDate(d.getDate() - d.getDay());
+        const year = sunday.getFullYear();
+        const weekNumber = this.getWeekNumber(date);
+        return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+    },
+
+    // 取得本週的週次鍵值
+    getThisWeekKey() {
+        return this.getWeekKeyFromDate(new Date());
+    },
+
+    // 取得上週的週次鍵值
+    getLastWeekKey() {
+        const today = new Date();
+        today.setDate(today.getDate() - 7);
+        return this.getWeekKeyFromDate(today);
+    }
+};
+
+// Legacy wrapper functions for compatibility.
+// It's better to call WeekUtils directly.
+function formatDate(date) { return WeekUtils.formatDate(date); }
+function getThisWeekKey() { return WeekUtils.getThisWeekKey(); }
+function getWeekKeyFromDate(date) { return WeekUtils.getWeekKeyFromDate(date); }
+function getLastWeekKey() { return WeekUtils.getLastWeekKey(); }
+function getWeekNumber(date) { return WeekUtils.getWeekNumber(date); }
+function getWeekDateRange(weekNumber, year) { return WeekUtils.getWeekDateRange(weekNumber, year); }
+function getWeekDateRangeFromKey(weekKey) { return WeekUtils.getWeekDateRangeFromKey(weekKey); }
+
 
 // 檢測CSV資料的來源週次
 function detectSourceWeekFromCSV(csvData) {
@@ -97,16 +170,16 @@ function detectSourceWeekFromCSV(csvData) {
     if (dates.length === 0) return null;
     
     // Get the week key from the first valid date
-    return getWeekKeyFromDate(dates[0]);
+    return WeekUtils.getWeekKeyFromDate(dates[0]);
 }
 
 // 計算兩個週次間的日期偏移量
 function getWeekOffset(sourceWeekKey, targetWeekKey) {
-    const sourceRange = getWeekDateRangeFromKey(sourceWeekKey);
-    const targetRange = getWeekDateRangeFromKey(targetWeekKey);
+    const sourceRange = WeekUtils.getWeekDateRangeFromKey(sourceWeekKey);
+    const targetRange = WeekUtils.getWeekDateRangeFromKey(targetWeekKey);
     
-    const sourceStartDate = sourceRange.start.toISOString().split('T')[0];
-    const targetStartDate = targetRange.start.toISOString().split('T')[0];
+    const sourceStartDate = WeekUtils.formatDate(sourceRange.start);
+    const targetStartDate = WeekUtils.formatDate(targetRange.start);
     
     // Calculate the difference in days between the start of each week
     const diffInMs = targetRange.start.getTime() - sourceRange.start.getTime();
@@ -122,11 +195,11 @@ function getWeekOffset(sourceWeekKey, targetWeekKey) {
 // 根據偏移量調整日期 (基於週起始日期差異)
 function shiftDateByOffset(dateStr, offsetDays) {
     const date = new Date(dateStr);
-    const originalDate = formatDate(date);
+    const originalDate = WeekUtils.formatDate(date);
     
     // 應用週起始日期偏移
     date.setDate(date.getDate() + offsetDays);
-    const shiftedDate = formatDate(date);
+    const shiftedDate = WeekUtils.formatDate(date);
     
     console.log(`[日期偏移] ${originalDate} + ${offsetDays}天 -> ${shiftedDate}`);
     return shiftedDate;
@@ -344,80 +417,6 @@ async function handleBasicInfoImport(csvBasicInfo) {
     return true;
 }
 
-// 取得上週的週次鍵值
-function getLastWeekKey() {
-    const today = new Date();
-    const lastMonday = new Date(today);
-    lastMonday.setDate(today.getDate() - today.getDay() - 6);
-    const year = lastMonday.getFullYear();
-    const weekNumber = getWeekNumber(lastMonday);
-    return year + '-W' + weekNumber.toString().padStart(2, '0');
-}
-
-// 計算週數（以週日為週首，YYYY-Www）
-function getWeekNumber(date) {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    
-    // Find Sunday of the week containing this date
-    const sunday = new Date(d);
-    sunday.setDate(d.getDate() - d.getDay());
-    
-    // Find the first Sunday of the year
-    const firstDayOfYear = new Date(year, 0, 1);
-    const firstSunday = new Date(firstDayOfYear);
-    const dayOfWeek = firstDayOfYear.getDay();
-    
-    if (dayOfWeek === 0) {
-        // January 1st is already Sunday
-        firstSunday.setDate(1);
-    } else {
-        // Find the first Sunday after January 1st
-        firstSunday.setDate(1 + (7 - dayOfWeek));
-    }
-    
-    // Calculate week number
-    const diff = sunday - firstSunday;
-    const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
-    return weekNumber;
-}
-
-// 取得週次的日期範圍 (週日為第一天)
-function getWeekDateRange(weekNumber, year) {
-    const firstDayOfYear = new Date(year, 0, 1);
-    const firstSunday = new Date(firstDayOfYear);
-    
-    // Find the first Sunday of the year (week 1 starts on first Sunday)
-    const dayOfWeek = firstDayOfYear.getDay(); // 0=Sunday, 1=Monday, etc.
-    if (dayOfWeek === 0) {
-        // January 1st is already Sunday
-        firstSunday.setDate(1);
-    } else {
-        // Find the first Sunday after January 1st
-        firstSunday.setDate(1 + (7 - dayOfWeek));
-    }
-    
-    // Calculate the start date of the requested week
-    const startDate = new Date(firstSunday);
-    startDate.setDate(firstSunday.getDate() + (weekNumber - 1) * 7);
-    
-    // End date is Saturday (6 days after Sunday)
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    
-    return {
-        start: startDate,  // Sunday
-        end: endDate      // Saturday
-    };
-}
-
-// 從週次鍵值取得日期範圍
-function getWeekDateRangeFromKey(weekKey) {
-    const [year, week] = weekKey.split('-');
-    const weekNumber = parseInt(week.substring(1));
-    return getWeekDateRange(weekNumber, year);
-}
-
 // ==================== UI 與卡片渲染 ====================
 
 // 初始化編輯頁面的週資訊顯示
@@ -437,15 +436,15 @@ function initializeEditPageWeekInfo() {
     // 如果URL沒有週次參數，使用當前週
     if (!currentWeekKey) {
         const today = new Date();
-        currentWeekKey = getWeekKeyFromDate(today);
+        currentWeekKey = WeekUtils.getWeekKeyFromDate(today);
         console.log('No week parameter found, using current week:', currentWeekKey);
     }
     
     // 解析週次並獲取日期範圍
     try {
         const weekRange = getWeekDateRangeFromKey(currentWeekKey);
-        const startStr = weekRange.start.toISOString().split('T')[0];
-        const endStr = weekRange.end.toISOString().split('T')[0];
+        const startStr = formatDate(weekRange.start);
+        const endStr = formatDate(weekRange.end);
         
         // 格式化顯示週次資訊
         weekTitleElement.textContent = `工時表 - ${currentWeekKey}`;
@@ -488,8 +487,8 @@ function renderTimesheetCards() {
             entries = weekData.entries;
         }
         const dateRange = getWeekDateRange(weekNumber, year);
-        const startStr = dateRange.start.toISOString().split('T')[0];
-        const endStr = dateRange.end.toISOString().split('T')[0];
+        const startStr = formatDate(dateRange.start);
+        const endStr = formatDate(dateRange.end);
         const totalHours = entries.reduce((sum, entry) => {
             const hours = entry.ttlHours || entry.TTL_Hours || entry['TTL_Hours'] || 0;
             return sum + (parseFloat(hours) || 0);
@@ -755,14 +754,14 @@ function showWeekSelectionModal() {
     
     // 更新週次資訊
     const thisWeekKey = getThisWeekKey();
-    const lastWeekKey = getLastWeekKey();
+    const lastWeekKey = WeekUtils.getLastWeekKey();
     const thisWeekRange = getWeekDateRangeFromKey(thisWeekKey);
     const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
     
     document.getElementById('this-week-info').textContent = 
-        `${thisWeekKey} (${thisWeekRange.start.toISOString().split('T')[0]} ~ ${thisWeekRange.end.toISOString().split('T')[0]})`;
+        `${thisWeekKey} (${formatDate(thisWeekRange.start)} ~ ${formatDate(thisWeekRange.end)})`;
     document.getElementById('last-week-info').textContent = 
-        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
+        `${lastWeekKey} (${formatDate(lastWeekRange.start)} ~ ${formatDate(lastWeekRange.end)})`;
     
     // 檢查是否已存在
     const timesheets = loadAllTimesheets();
@@ -851,31 +850,26 @@ function confirmWeekSelection() {
 
 // 更新上週按鈕顯示狀態和文字
 function updateLastWeekButtonDisplay() {
-    const today = new Date();
-    const lastMonday = new Date(today);
-    lastMonday.setDate(today.getDate() - today.getDay() - 6);
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-    
     const button = document.getElementById('btn-last-week');
     const container = document.getElementById('last-week-container');
-    
+
     if (button && container) {
-        const lastWeekKey = getLastWeekKey();
+        const lastWeekKey = WeekUtils.getLastWeekKey();
         const timesheets = loadAllTimesheets();
-        
+
         if (timesheets[lastWeekKey]) {
             container.style.display = 'none';
         } else {
             container.style.display = 'block';
-            button.textContent = `建立上週工時表 (${formatDate(lastMonday)} - ${formatDate(lastSunday)})`;
+            const lastWeekRange = WeekUtils.getWeekDateRangeFromKey(lastWeekKey);
+            button.textContent = `建立上週工時表 (${WeekUtils.formatDate(lastWeekRange.start)} - ${WeekUtils.formatDate(lastWeekRange.end)})`;
         }
     }
 }
 
 // 建立上週工時表
 function createLastWeekTimesheet() {
-    const lastWeekKey = getLastWeekKey();
+    const lastWeekKey = WeekUtils.getLastWeekKey();
     const timesheets = loadAllTimesheets();
     
     if (!timesheets[lastWeekKey]) {
@@ -1141,14 +1135,14 @@ function showImportWeekSelectionModal() {
     
     // 更新週次資訊
     const thisWeekKey = getThisWeekKey();
-    const lastWeekKey = getLastWeekKey();
+    const lastWeekKey = WeekUtils.getLastWeekKey();
     const thisWeekRange = getWeekDateRangeFromKey(thisWeekKey);
     const lastWeekRange = getWeekDateRangeFromKey(lastWeekKey);
     
     document.getElementById('this-week-info').textContent = 
-        `${thisWeekKey} (${thisWeekRange.start.toISOString().split('T')[0]} ~ ${thisWeekRange.end.toISOString().split('T')[0]})`;
+        `${thisWeekKey} (${formatDate(thisWeekRange.start)} ~ ${formatDate(thisWeekRange.end)})`;
     document.getElementById('last-week-info').textContent = 
-        `${lastWeekKey} (${lastWeekRange.start.toISOString().split('T')[0]} ~ ${lastWeekRange.end.toISOString().split('T')[0]})`;
+        `${lastWeekKey} (${formatDate(lastWeekRange.start)} ~ ${formatDate(lastWeekRange.end)})`;
     
     // 檢查是否已存在
     const timesheets = loadAllTimesheets();
@@ -1772,7 +1766,7 @@ window.updatePMField = updatePMField;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 2.12.14 (2025-01-25T08:48:00Z)');
+console.log('App.js initialized and running - Version 2.12.15 (2025-01-25T08:48:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
