@@ -884,33 +884,30 @@ function createLastWeekTimesheet() {
 
 // 簡化的 CSV 解析
 function parseCSV(text) {
-    console.log('Raw CSV text length:', text.length);
-    console.log('First 200 chars:', text.substring(0, 200));
-    
     // Remove BOM if present
     text = text.replace(/^\uFEFF/, '');
-    console.log('After BOM removal, first 200 chars:', text.substring(0, 200));
     
     const lines = text.trim().split(/\r?\n/);
-    console.log('Total lines:', lines.length);
-    
     if (lines.length < 2) return [];
     
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    console.log('Headers found:', headers);
     
-    return lines.slice(1).map((line, index) => {
-        console.log(`Processing line ${index + 1}:`, line);
-        
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        console.log('Values extracted:', values);
-        
+    // This regex handles commas inside quotes
+    const regex = /(?:^|,)("(?:[^"]+|"")*"|[^",]*)/g;
+    
+    return lines.slice(1).map(line => {
         const obj = {};
-        headers.forEach((h, i) => {
-            obj[h] = values[i] || '';
-        });
-        
-        console.log('Initial object after header mapping:', obj);
+        let match;
+        let i = 0;
+        while (match = regex.exec(line)) {
+            let value = match[1].trim();
+            // Remove quotes from quoted fields
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.slice(1, -1).replace(/""/g, '"');
+            }
+            obj[headers[i]] = value;
+            i++;
+        }
         
         // Convert date format from YYYY/M/D to YYYY-MM-DD
         if (obj.Date && obj.Date.includes('/')) {
@@ -919,34 +916,20 @@ function parseCSV(text) {
                 const year = parts[0];
                 const month = parts[1].padStart(2, '0');
                 const day = parts[2].padStart(2, '0');
-                const newDate = `${year}-${month}-${day}`;
-                console.log(`Date conversion: ${obj.Date} -> ${newDate}`);
-                obj.Date = newDate;
-                obj.date = newDate; // Also set the internal field
+                obj.Date = `${year}-${month}-${day}`;
+                obj.date = obj.Date;
             }
         }
         
         // Normalize field names for internal use
         const fieldMapping = {
-            'Regular Hours': 'regularHours',
-            'OT Hours': 'otHours',
-            'TTL_Hours': 'ttlHours',
-            'Zone': 'zone',
-            'Project': 'project',
-            'Product Module': 'productModule',
-            'Activity Type': 'activityType',
-            'Task': 'task',
-            'Date': 'date',
-            'Start Date': 'startDate',
-            'End Date': 'endDate',
-            'Comments': 'comments',
-            'PM': 'pm',
-            'Name': 'name',
-            'InternalOrOutsource': 'employeeType'
+            'Regular Hours': 'regularHours', 'OT Hours': 'otHours', 'TTL_Hours': 'ttlHours',
+            'Zone': 'zone', 'Project': 'project', 'Product Module': 'productModule',
+            'Activity Type': 'activityType', 'Task': 'task', 'Date': 'date',
+            'Start Date': 'startDate', 'End Date': 'endDate', 'Comments': 'comments',
+            'PM': 'pm', 'Name': 'name', 'InternalOrOutsource': 'employeeType'
         };
         
-        console.log('Applying field mappings...');
-        // Apply field mappings
         Object.keys(fieldMapping).forEach(csvField => {
             if (obj[csvField] !== undefined) {
                 const internalField = fieldMapping[csvField];
@@ -955,17 +938,11 @@ function parseCSV(text) {
                 if (csvField.includes('Hours')) {
                     obj[internalField] = parseFloat(originalValue) || 0;
                 } else {
-                    // For non-hour fields, preserve the value
                     obj[internalField] = originalValue;
                 }
-                
-                console.log(`Field mapping: ${csvField} (${originalValue}) -> ${internalField} (${obj[internalField]})`);
-            } else {
-                console.log(`Field ${csvField} not found in CSV data`);
             }
         });
         
-        console.log('Final parsed object:', obj);
         return obj;
     });
 }
