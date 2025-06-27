@@ -878,24 +878,16 @@ function parseCSV(text) {
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
     
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    
-    // This regex handles commas inside quotes
-    const regex = /(?:^|,)("(?:[^"]+|"")*"|[^",]*)/g;
+    const headers = parseCSVLine(lines[0]);
     
     return lines.slice(1).map(line => {
+        if (!line.trim()) return null;
+        
+        const fields = parseCSVLine(line);
         const obj = {};
-        let match;
-        let i = 0;
-        while (match = regex.exec(line)) {
-            let value = match[1].trim();
-            // Remove quotes from quoted fields
-            if (value.startsWith('"') && value.endsWith('"')) {
-                value = value.slice(1, -1).replace(/""/g, '"');
-            }
-            obj[headers[i]] = value;
-            i++;
-        }
+        headers.forEach((h, i) => {
+            obj[h] = fields[i] || '';
+        });
         
         // Convert date format from YYYY/M/D to YYYY-MM-DD
         if (obj.Date && obj.Date.includes('/')) {
@@ -932,7 +924,7 @@ function parseCSV(text) {
         });
         
         return obj;
-    });
+    }).filter(obj => obj !== null);
 }
 
 // 生成CSV內容
@@ -1114,18 +1106,62 @@ function closeCopyModal() {
 // ==================== CSV 載入功能 ====================
 
 // CSV 載入函數（用於編輯頁面的下拉選單）
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    
+    while (i < line.length) {
+        const char = line[i];
+        
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                // Escaped quote ""
+                current += '"';
+                i += 2;
+            } else {
+                // Toggle quote state
+                inQuotes = !inQuotes;
+                i++;
+            }
+        } else if (char === ',' && !inQuotes) {
+            // Field separator outside quotes
+            result.push(current.trim());
+            current = '';
+            i++;
+        } else {
+            current += char;
+            i++;
+        }
+    }
+    
+    // Add the last field
+    result.push(current.trim());
+    return result;
+}
+
 async function fetchCSV(path) {
     try {
         const res = await fetch(path);
         const text = await res.text();
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        
+        // Remove BOM if present
+        const cleanText = text.replace(/^\uFEFF/, '');
+        const lines = cleanText.trim().split(/\r?\n/);
+        if (lines.length < 2) return [];
+        
+        const headers = parseCSVLine(lines[0]);
+        
         return lines.slice(1).map(line => {
-            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            if (!line.trim()) return null;
+            const fields = parseCSVLine(line);
             const obj = {};
-            headers.forEach((h, i) => obj[h] = cols[i] || '');
+            headers.forEach((h, i) => {
+                obj[h] = fields[i] || '';
+            });
             return obj;
-        });
+        }).filter(obj => obj !== null);
     } catch (error) {
         console.error('Error fetching CSV:', path, error);
         return [];

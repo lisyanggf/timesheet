@@ -22,8 +22,8 @@ Tele Release,BSR,ERP,BSR Tele Release
 BSR Web,BSR,ERP,BSR BSR Web
 Agent Settlement,E Portal,ERP,E Portal Agent Settlement
 CWIS,Integration Portal,ERP,Integration Portal CWIS
-A2A Integration(Include Asia, US CW Integration),Integration Portal,ERP,"Integration Portal A2A Integration(Include Asia, US CW Integration)"
-B2B Integration (For Customer Carrier Rail Custom Warehouse),Integration Portal,ERP,Integration Portal B2B Integration (For Customer Carrier Rail Custom Warehouse)
+"A2A Integration(Include Asia, US CW Integration)",Integration Portal,ERP,"Integration Portal A2A Integration(Include Asia, US CW Integration)"
+"B2B Integration (For Customer, Carrier, Rail, Custom, Warehouse)",Integration Portal,ERP,"Integration Portal B2B Integration (For Customer, Carrier, Rail, Custom, Warehouse)"
 Star Asia Integration,Integration Portal,ERP,Integration Portal Star Asia Integration
 EM2,Legacy Application (.Net),ERP,Legacy Application (.Net) EM2
 SOC,Legacy Application (.Net),ERP,Legacy Application (.Net) SOC
