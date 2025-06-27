@@ -14,6 +14,27 @@ This timesheet management application allows employees to create weekly timeshee
 
 ## Data Validation Rules
 
+### Regular Hours Limitation
+
+**Regular hours cannot exceed 8 hours per entry.**
+
+#### Validation Behavior
+- **Real-time validation**: As you type in the regular hours field, the system monitors the value
+- **Automatic correction**: If you enter more than 8 hours, the system will:
+  - Show an alert: "正常工時不能超過8小時！" (Regular hours cannot exceed 8 hours!)
+  - Automatically reset the value to 8 hours
+  - Refocus the field for correction
+  - Recalculate total hours automatically
+
+#### Form Submission Protection
+- **Pre-save validation**: Before saving any timesheet entry, the system validates regular hours
+- **Save prevention**: If regular hours exceed 8, the save operation is blocked with the message: "正常工時不能超過8小時！請修正後再儲存。"
+- **Field focus**: The system automatically focuses on the regular hours field for correction
+
+#### Overtime Hours
+- **No limit on OT hours**: Overtime hours can be any value as they represent additional work beyond regular hours
+- **Total calculation**: Total hours = Regular hours (max 8) + OT hours (unlimited)
+
 ### Admin / Training Activity Rule
 
 When you select **"Admin / Training"** as the activity type, the system will automatically enforce the following data consistency rules:

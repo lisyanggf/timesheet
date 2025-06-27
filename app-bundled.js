@@ -1280,7 +1280,24 @@ async function updatePMField() {
     }
 }
 
-// ==================== 活動類型驗證功能 ====================
+// ==================== 資料驗證功能 ====================
+
+// 驗證正常工時不能超過8小時
+function validateRegularHours(hours) {
+    const regularHours = parseFloat(hours) || 0;
+    if (regularHours > 8) {
+        return {
+            isValid: false,
+            message: '正常工時不能超過8小時！',
+            maxValue: 8
+        };
+    }
+    return {
+        isValid: true,
+        message: '',
+        maxValue: 8
+    };
+}
 
 // 處理活動類型變更的驗證邏輯
 async function handleActivityTypeChange(activityType) {
@@ -1584,6 +1601,14 @@ function getFormData() {
     // 收集數據
     const regularHours = parseFloat(document.getElementById('regularHours').value) || 0;
     const otHours = parseFloat(document.getElementById('otHours').value) || 0;
+    
+    // 驗證正常工時不能超過8小時
+    if (regularHours > 8) {
+        alert('正常工時不能超過8小時！請修正後再儲存。');
+        document.getElementById('regularHours').focus();
+        return null;
+    }
+    
     const ttlHours = regularHours + otHours;
     
     // 更新總工時顯示
@@ -1805,6 +1830,7 @@ window.initProjectAndProductSelect = initProjectAndProductSelect;
 window.updatePMField = updatePMField;
 window.handleActivityTypeChange = handleActivityTypeChange;
 window.validateZoneChange = validateZoneChange;
+window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
@@ -1902,6 +1928,21 @@ document.addEventListener('DOMContentLoaded', function() {
             function calculateTotalHours() {
                 const regular = parseFloat(regularHoursInput?.value) || 0;
                 const ot = parseFloat(otHoursInput?.value) || 0;
+                
+                // 驗證正常工時不能超過8小時
+                if (regular > 8) {
+                    alert('正常工時不能超過8小時！');
+                    regularHoursInput.value = '8';
+                    regularHoursInput.focus();
+                    // 重新計算使用修正後的值
+                    const correctedRegular = 8;
+                    const total = correctedRegular + ot;
+                    if (ttlHoursInput) {
+                        ttlHoursInput.value = total;
+                    }
+                    return;
+                }
+                
                 const total = regular + ot;
                 if (ttlHoursInput) {
                     ttlHoursInput.value = total;
@@ -1910,6 +1951,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (regularHoursInput) {
                 regularHoursInput.addEventListener('input', calculateTotalHours);
+                
+                // 添加失去焦點時的驗證
+                regularHoursInput.addEventListener('blur', function() {
+                    const validation = validateRegularHours(this.value);
+                    if (!validation.isValid) {
+                        alert(validation.message);
+                        this.value = validation.maxValue;
+                        this.focus();
+                        calculateTotalHours(); // 重新計算總工時
+                    }
+                });
             }
             if (otHoursInput) {
                 otHoursInput.addEventListener('input', calculateTotalHours);
