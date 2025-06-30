@@ -54,6 +54,13 @@ The application expects these CSV files in the root directory:
 - `productcode.csv` - Product module reference data  
 - `activityType.csv` - Activity type reference data
 
+## Documentation Structure
+
+The documentation is now organized in the `docs/` directory:
+- `docs/user/USER_GUIDE.md` - Comprehensive user documentation
+- `docs/technical/TECHNICAL_GUIDE.md` - Technical implementation details
+- `docs/ai-guidance/` - AI assistant guidance files
+
 ## Key Features
 
 ### Multi-week Management
