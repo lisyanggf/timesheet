@@ -1293,6 +1293,12 @@
             // Check if there's previous export data to merge
             if (previousExportData && previousExportData.length > 0) {
                 confirmMessage += `\n📥 將合併之前的匯出資料：${previousExportData.length} 筆記錄\n`;
+                
+                // Check for duplicates before export
+                const duplicateInfo = checkDuplicateRecords();
+                if (duplicateInfo.duplicateCount > 0) {
+                    confirmMessage += `⚠️ 發現 ${duplicateInfo.duplicateCount} 筆重複記錄將被包含在匯出中\n`;
+                }
             }
             
             const totalNewRecords = passedFiles.reduce((sum, file) => sum + (file.data ? file.data.length : 0), 0);
@@ -1440,6 +1446,59 @@
         
         let previousExportData = null;
         
+        // Generate a unique key for a record to detect duplicates
+        function generateRecordKey(entry) {
+            // Use key fields to create a unique identifier
+            return `${entry.Name || ''}_${entry.Zone || ''}_${entry.Project || ''}_${entry.Task || ''}_${entry.Date || ''}_${entry['Regular Hours'] || ''}_${entry['OT Hours'] || ''}`;
+        }
+        
+        // Check for duplicate records between previous export and current passed files
+        function checkDuplicateRecords() {
+            if (!previousExportData || previousExportData.length === 0) {
+                return { duplicateCount: 0, duplicateDetails: [] };
+            }
+            
+            // Get all current passed file data
+            const currentPassedData = [];
+            validationFiles.forEach((fileInfo, fileName) => {
+                if (fileInfo.results && fileInfo.results.overallResult === 'PASS' && fileInfo.data) {
+                    fileInfo.data.forEach(entry => {
+                        currentPassedData.push({
+                            fileName: fileName,
+                            entry: entry,
+                            key: generateRecordKey(entry)
+                        });
+                    });
+                }
+            });
+            
+            // Create a set of current record keys for fast lookup
+            const currentRecordKeys = new Set(currentPassedData.map(item => item.key));
+            
+            // Find duplicates in previous export data
+            const duplicates = [];
+            const previousRecordKeys = new Set();
+            
+            previousExportData.forEach((entry, index) => {
+                const key = generateRecordKey(entry);
+                if (currentRecordKeys.has(key)) {
+                    duplicates.push({
+                        index: index,
+                        entry: entry,
+                        key: key
+                    });
+                }
+                previousRecordKeys.add(key);
+            });
+            
+            return {
+                duplicateCount: duplicates.length,
+                duplicateDetails: duplicates,
+                totalPreviousRecords: previousExportData.length,
+                totalCurrentRecords: currentPassedData.length
+            };
+        }
+        
         function handlePreviousFileSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1456,8 +1515,37 @@
                     }
                     
                     previousExportData = parsedData;
-                    document.getElementById('previous-file-name').textContent = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
+                    
+                    // Check for duplicates with current passed files
+                    const duplicateInfo = checkDuplicateRecords();
+                    
+                    let displayText = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
+                    if (duplicateInfo.duplicateCount > 0) {
+                        displayText += ` - ⚠️ 發現 ${duplicateInfo.duplicateCount} 筆重複記錄`;
+                    }
+                    
+                    document.getElementById('previous-file-name').textContent = displayText;
                     document.getElementById('btn-clear-previous').style.display = 'inline-block';
+                    
+                    // Show detailed duplicate information if any
+                    if (duplicateInfo.duplicateCount > 0) {
+                        console.log('🔍 重複記錄詳情:', duplicateInfo);
+                        const message = `載入之前的匯出檔案完成！\n\n` +
+                            `📊 統計資訊：\n` +
+                            `• 之前匯出檔案：${duplicateInfo.totalPreviousRecords} 筆記錄\n` +
+                            `• 目前通過驗證：${duplicateInfo.totalCurrentRecords} 筆記錄\n` +
+                            `• 重複記錄：${duplicateInfo.duplicateCount} 筆\n\n` +
+                            `⚠️ 注意：合併匯出時，重複的記錄將會包含在最終檔案中。\n` +
+                            `如果您不希望有重複記錄，請手動檢查並清理資料。`;
+                        alert(message);
+                    } else {
+                        alert(`載入之前的匯出檔案完成！\n\n` +
+                            `📊 統計資訊：\n` +
+                            `• 之前匯出檔案：${parsedData.length} 筆記錄\n` +
+                            `• 目前通過驗證：${duplicateInfo.totalCurrentRecords} 筆記錄\n` +
+                            `• 重複記錄：無\n\n` +
+                            `✅ 沒有發現重複記錄，可以安全合併。`);
+                    }
                     
                 } catch (error) {
                     alert('讀取之前的匯出檔案時發生錯誤，請確認檔案格式正確');
@@ -1472,6 +1560,7 @@
             document.getElementById('previous-file-name').textContent = '';
             document.getElementById('btn-clear-previous').style.display = 'none';
             document.getElementById('previous-export-file').value = '';
+            console.log('🗑️ 已清除之前的匯出檔案');
         }
         
         // ==================== INITIALIZATION ====================
