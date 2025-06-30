@@ -6,11 +6,14 @@ This timesheet management application allows employees to create weekly timeshee
 
 ## Key Features
 
-- **Multi-week Management**: Create and manage timesheets for different weeks
+- **Multi-week Management**: Create and manage timesheets for different weeks with card-based interface
 - **Data Validation**: Automatic field validation and data consistency checks
-- **CSV Import/Export**: Import existing data and export timesheets to CSV format
+- **CSV Import/Export**: Import existing data and export timesheets to CSV format with conflict resolution
 - **Zone-based Filtering**: Project and product options are filtered based on selected zone
 - **Activity Type Validation**: Special handling for Admin/Training activities
+- **TPM Validation Tool**: Independent validation dashboard for timesheet compliance
+- **PM Lookup System**: Automatic PM assignment based on Zone + Project combination
+- **Basic Info Management**: Global employee information shared across all timesheets
 
 ## Data Validation Rules
 
@@ -82,15 +85,34 @@ This validation ensures that:
 - **OA**: Office Automation systems
 
 ### CSV Import/Export
-- **Export**: Use the "匯出本週" button to download timesheet data
-- **Import**: Use the "匯入" function to load existing CSV data
+- **Export**: Use the "匯出本週" button to download timesheet data in UTF-8 encoded CSV format
+- **Import**: Use the "匯入" function to load existing CSV data with automatic week grouping
 - **Format**: The system handles CSV files with proper comma escaping for complex product names
+- **Conflict Resolution**: When importing data with different basic info, system provides choice dialogs:
+  - Consistent data: Confirmation dialog (Continue Import / Cancel Import)
+  - Conflicting data: Selection dialog (Use Local Data / Use CSV Data) - no cancel option
+- **Normalization**: Export includes normalization for weeks exceeding 40 regular hours
 
 ### Data Persistence
-- All timesheet data is stored locally in your browser
-- Data persists between sessions
-- Use the export function to backup your data
+- All timesheet data is stored locally in your browser using localStorage
+- Data persists between sessions and browser restarts
+- Global basic info (employee name, type) is shared across all timesheets
+- Use the export function to backup your data regularly
 - Clear storage option available for data reset
+
+### PM Lookup System
+- **Zone + Project Dependency**: PM field is automatically populated based on both Zone and Project selection
+- **Automatic Clearing**: When Zone changes, PM field is automatically cleared to ensure data consistency
+- **Critical Note**: PM lookup must consider both Zone AND Project because projects with the same name can exist across different zones
+- **Sequential Selection**: Always select Zone first, then Project, to get the correct PM assignment
+
+### TPM Validation Tool
+Access the independent TPM validation dashboard at `tpm-validator.html` for:
+- **Admin/Training Validation**: Ensures compliance with Admin/Training activity rules
+- **8-Hour Regular Hours Rule**: Validates that regular hours don't exceed 8 hours per entry
+- **Weekly Total Hours Check**: Verifies total weekly hours are within acceptable ranges
+- **Batch Processing**: Validate multiple CSV files simultaneously
+- **Detailed Reports**: Get comprehensive validation results with specific rule violations
 
 ## Troubleshooting
 
@@ -108,6 +130,15 @@ A: Ensure your CSV file uses proper quoting for fields containing commas, especi
 **Q: My timesheet data disappeared**
 A: Data is stored locally. If you cleared browser data or switched browsers, the data may be lost. Always export your data regularly as backup.
 
+**Q: PM field doesn't populate after selecting Project**
+A: Ensure you have selected both Zone and Project. PM lookup requires both fields. If Zone was changed, the PM field is automatically cleared.
+
+**Q: CSV import shows basic info conflict dialog**
+A: This is normal when importing data with different employee information. Choose either "Use Local Data" to keep your current info or "Use CSV Data" to adopt the imported information.
+
+**Q: TPM validation fails**
+A: Check the specific validation rules in the TPM validator dashboard. Common issues include Admin/Training activities not using the correct zone/project combination or regular hours exceeding 8 hours.
+
 ### Browser Compatibility
 - Requires modern browsers with ES6 support
 - localStorage support required
@@ -115,6 +146,23 @@ A: Data is stored locally. If you cleared browser data or switched browsers, the
 
 ## Version Information
 
-This documentation is for Timesheet Application which includes the Admin/Training activity validation feature and unified YYYY/MM/DD date format.
+This documentation is for Timesheet Application v3.0.0 which includes:
+- Admin/Training activity validation feature
+- Unified YYYY/MM/DD date format
+- CSV import/export with conflict resolution
+- TPM validation dashboard
+- Zone/Project/PM lookup system
+- Multi-week card-based management
+- Global basic info management
+
+## File Structure
+
+The application consists of:
+- `index.html` - Main dashboard with timesheet cards
+- `edit.html` - Timesheet editing interface
+- `tpm-validator.html` - TPM validation tool
+- `app-bundled.js` - Complete application logic
+- `style.css` - Application styling
+- CSV data files: `projectcode.csv`, `productcode.csv`, `activityType.csv`
 
 For technical support or feature requests, please contact your system administrator.

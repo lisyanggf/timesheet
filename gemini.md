@@ -17,7 +17,10 @@ This is a Chinese timesheet management web application built with vanilla HTML, 
 ### Key Files
 - `index.html` - Main dashboard showing all timesheet cards
 - `edit.html` - Timesheet editing interface for individual weeks
+- `tpm-validator.html` - TPM validation tool dashboard
 - `app-bundled.js` - Complete application logic in a single bundled file (no ES6 modules for GitHub Pages compatibility)
+- `style.css` - Application styling
+- CSV data files: `projectcode.csv`, `productcode.csv`, `activityType.csv`
 
 ### Data Model
 - **Week Keys**: Format `YYYY-Www` (e.g., "2024-W25")
@@ -69,8 +72,17 @@ The application expects these CSV files in the root directory:
 
 ### Data Import/Export
 - CSV export functionality with proper UTF-8 encoding
-- CSV import with automatic week grouping
-- Normalization calculations for export
+- CSV import with automatic week grouping and conflict resolution
+- Normalization calculations for export (weeks > 40 hours)
+- Basic info conflict handling with user choice dialogs
+
+### TPM Validation Tool
+- Independent validation dashboard (`tpm-validator.html`)
+- Admin/Training activity validation rules
+- 8-hour regular hours validation
+- Weekly total hours validation
+- Batch processing for multiple CSV files
+- Detailed validation reports
 
 ### Localization
 - Interface is in Traditional Chinese
@@ -136,14 +148,44 @@ const choice = await showBasicInfoChoiceDialog(
 
 **Note**: For inconsistent data dialogs, only options 1 and 2 are available (no cancel option).
 
+### TPM Validation Patterns
+When implementing TPM validation features:
+```javascript
+// Validate Admin/Training rules
+function validateAdminTrainingRules(entries) {
+    return entries.filter(entry => {
+        if (entry.activityType === 'Admin / Training') {
+            return entry.zone === 'Admin' && 
+                   entry.project === 'Admin' && 
+                   entry.productModule === 'Non Product Non Product';
+        }
+        return true;
+    });
+}
+
+// Validate regular hours (max 8 per entry)
+function validateRegularHours(entries) {
+    return entries.filter(entry => entry.regularHours <= 8);
+}
+
+// Validate weekly total hours
+function validateWeeklyTotalHours(entries) {
+    const totalHours = entries.reduce((sum, entry) => sum + entry.ttlHours, 0);
+    return totalHours >= 0 && totalHours <= 168; // Max hours in a week
+}
+```
+
 ## Error Handling
 
 The application includes validation for:
 - Date ranges within week boundaries
 - Required form fields
-- Hour limits (0-24 range)
-- CSV import data integrity
+- Hour limits (0-24 range for OT, 0-8 range for regular hours)
+- CSV import data integrity and basic info conflicts
 - Week key format validation
+- Admin/Training activity consistency
+- PM field dependency on Zone + Project combination
+- TPM compliance rules
 
 ## Browser Compatibility
 
