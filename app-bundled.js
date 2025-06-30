@@ -1587,9 +1587,16 @@ function downloadCSVFile(csvContent, filename) {
         link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        
+        // 小延遲避免連續下載時瀏覽器阻擋
+        setTimeout(() => {
+            link.click();
+            // 延遲清理，給瀏覽器足夠時間處理下載
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }, 50);
     } catch (err) {
         console.error('Download error:', err);
     }
@@ -2396,7 +2403,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.2.4 (2025-07-01T00:15:00Z)');
+console.log('App.js initialized and running - Version 3.2.6 (2025-07-01T00:15:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -2576,6 +2583,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Edit page basic info save button clicked');
                     saveBasicInfoFromEditForm();
                 });
+            }
+            
+            // 匯出本週按鈕事件
+            const exportWeekBtn = document.getElementById('btn-export-week');
+            if (exportWeekBtn) {
+                console.log('Export week button found, adding event listener');
+                exportWeekBtn.addEventListener('click', function() {
+                    console.log('Export week button clicked');
+                    // 獲取當前週次
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let currentWeekKey = urlParams.get('week');
+                    if (!currentWeekKey) {
+                        const today = new Date();
+                        currentWeekKey = WeekUtils.getWeekKeyFromDate(today);
+                    }
+                    exportTimesheet(currentWeekKey);
+                });
+            } else {
+                console.log('Export week button not found');
+            }
+            
+            // 新增記錄按鈕事件
+            const addEntryBtn = document.getElementById('btn-add-entry');
+            if (addEntryBtn) {
+                console.log('Add entry button found, adding event listener');
+                addEntryBtn.addEventListener('click', function() {
+                    console.log('Add entry button clicked');
+                    clearForm();
+                    // 聚焦到第一個輸入欄位
+                    const taskField = document.getElementById('task');
+                    if (taskField) {
+                        taskField.focus();
+                    }
+                });
+            } else {
+                console.log('Add entry button not found');
             }
         }, 500);
         
