@@ -1,5 +1,4 @@
 // ==================== COMPLETE BUNDLED VERSION - NO ES6 MODULES ====================
-// Version 3.0.0 - Complete functionality with TPM Validation Dashboard
 
 
 // ==================== localStorage 與資料存取 ====================
@@ -889,16 +888,39 @@ function parseCSV(text) {
             obj[h] = fields[i] || '';
         });
         
-        // Convert date format from YYYY/M/D to YYYY-MM-DD
-        if (obj.Date && obj.Date.includes('/')) {
-            const parts = obj.Date.split('/');
-            if (parts.length === 3) {
-                const year = parts[0];
-                const month = parts[1].padStart(2, '0');
-                const day = parts[2].padStart(2, '0');
-                obj.Date = `${year}-${month}-${day}`;
-                obj.date = obj.Date;
+        // Convert any date format to internal YYYY-MM-DD for storage
+        function normalizeDateForStorage(dateStr) {
+            if (!dateStr) return dateStr;
+            
+            // Convert YYYY/MM/DD to YYYY-MM-DD for internal storage
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const year = parts[0];
+                    const month = parts[1].padStart(2, '0');
+                    const day = parts[2].padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
             }
+            
+            // If already in YYYY-MM-DD format, return as is
+            if (dateStr.includes('-')) {
+                return dateStr;
+            }
+            
+            return dateStr;
+        }
+        
+        // Normalize all date fields for internal storage
+        if (obj.Date) {
+            obj.Date = normalizeDateForStorage(obj.Date);
+            obj.date = obj.Date;
+        }
+        if (obj['Start Date']) {
+            obj['Start Date'] = normalizeDateForStorage(obj['Start Date']);
+        }
+        if (obj['End Date']) {
+            obj['End Date'] = normalizeDateForStorage(obj['End Date']);
         }
         
         // Normalize field names for internal use
@@ -928,6 +950,27 @@ function parseCSV(text) {
 }
 
 // 生成CSV內容
+// Convert date from YYYY-MM-DD to YYYY/MM/DD for CSV export
+function formatDateForCSV(dateStr) {
+    if (!dateStr) return '';
+    
+    // If already in YYYY/MM/DD format, return as is
+    if (dateStr.includes('/')) return dateStr;
+    
+    // Convert YYYY-MM-DD to YYYY/MM/DD
+    if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parts[0];
+            const month = parts[1].padStart(2, '0');
+            const day = parts[2].padStart(2, '0');
+            return `${year}/${month}/${day}`;
+        }
+    }
+    
+    return dateStr;
+}
+
 function generateCSVContent(entries, shouldNormalize = false) {
     const headers = [
         'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
@@ -950,9 +993,9 @@ function generateCSVContent(entries, shouldNormalize = false) {
         entry.regularHours || 0,
         entry.otHours || 0,
         entry.ttlHours || 0,
-        entry.date || '',
-        entry.startDate || '',
-        entry.endDate || '',
+        formatDateForCSV(entry.date || ''),
+        formatDateForCSV(entry.startDate || ''),
+        formatDateForCSV(entry.endDate || ''),
         entry.comments || '',
         entry.pm || '',
         basicInfo.employeeType || ''
@@ -1834,7 +1877,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.0.0 (2025-06-27T22:00:00Z)');
+console.log('App.js initialized and running - Version 3.0.2 (2025-06-30T23:35:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {

@@ -115,6 +115,6 @@ A: Data is stored locally. If you cleared browser data or switched browsers, the
 
 ## Version Information
 
-This documentation is for Timesheet Application Version 2.12.19 and later, which includes the Admin/Training activity validation feature.
+This documentation is for Timesheet Application which includes the Admin/Training activity validation feature and unified YYYY/MM/DD date format.
 
 For technical support or feature requests, please contact your system administrator.

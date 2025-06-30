@@ -345,13 +345,14 @@
                 
                 <div class="action-buttons">
                     <button class="btn btn-primary" id="btn-revalidate-file">Re-validate File</button>
+                    <button class="btn btn-success" id="btn-export-corrected" style="display: none;">匯出格式修正版</button>
                     <button class="btn btn-danger" id="btn-remove-file">Remove File</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="./app-bundled.js?v=3.0.0&t=1719325200"></script>
+    <script src="./app-bundled.js"></script>
     <script>
         // ==================== TPM VALIDATION DASHBOARD ====================
         console.log('🛡️ TPM Validation Dashboard loaded');
@@ -413,6 +414,18 @@
                 headers.forEach((h, i) => {
                     obj[h] = fields[i] || '';
                 });
+                
+                // Normalize date formats after parsing
+                if (obj.Date) {
+                    obj.Date = normalizeDateFormat(obj.Date);
+                }
+                if (obj['Start Date']) {
+                    obj['Start Date'] = normalizeDateFormat(obj['Start Date']);
+                }
+                if (obj['End Date']) {
+                    obj['End Date'] = normalizeDateFormat(obj['End Date']);
+                }
+                
                 return obj;
             }).filter(obj => obj !== null);
         }
@@ -469,31 +482,65 @@
             };
         }
         
-        // 2. Date format validation
+        // Helper function to normalize date format to YYYY/MM/DD
+        function normalizeDateFormat(dateStr) {
+            if (!dateStr) return dateStr;
+            
+            // If already in YYYY/MM/DD format with zero padding, return as is
+            if (/^\d{4}\/\d{2}\/\d{2}$/.test(dateStr)) {
+                return dateStr;
+            }
+            
+            // Convert YYYY-MM-DD to YYYY/MM/DD
+            if (dateStr.includes('-')) {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    const year = parts[0];
+                    const month = parts[1].padStart(2, '0');
+                    const day = parts[2].padStart(2, '0');
+                    return `${year}/${month}/${day}`;
+                }
+            }
+            
+            // Convert YYYY/M/D to YYYY/MM/DD (add zero padding)
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const year = parts[0];
+                    const month = parts[1].padStart(2, '0');
+                    const day = parts[2].padStart(2, '0');
+                    return `${year}/${month}/${day}`;
+                }
+            }
+            
+            return dateStr;
+        }
+
+        // 2. Date format validation (only accepts YYYY/MM/DD format)
         function validateDateFormat(entry, lineNumber) {
             const errors = [];
-            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+            const requiredDatePattern = /^\d{4}\/\d{2}\/\d{2}$/; // Strict YYYY/MM/DD with zero padding
             
             // Check main date field
-            if (entry.Date && !datePattern.test(entry.Date)) {
-                errors.push(`第 ${lineNumber} 行：日期格式錯誤 "${entry.Date}"，應為 YYYY-MM-DD 格式`);
+            if (entry.Date && !requiredDatePattern.test(entry.Date)) {
+                errors.push(`第 ${lineNumber} 行：日期格式錯誤 "${entry.Date}"，應為 YYYY/MM/DD 格式（需零填充，如：2025/06/09）`);
             }
             
             // Check start date if exists
-            if (entry['Start Date'] && !datePattern.test(entry['Start Date'])) {
-                errors.push(`第 ${lineNumber} 行：開始日期格式錯誤 "${entry['Start Date']}"，應為 YYYY-MM-DD 格式`);
+            if (entry['Start Date'] && !requiredDatePattern.test(entry['Start Date'])) {
+                errors.push(`第 ${lineNumber} 行：開始日期格式錯誤 "${entry['Start Date']}"，應為 YYYY/MM/DD 格式（需零填充，如：2025/06/09）`);
             }
             
             // Check end date if exists
-            if (entry['End Date'] && !datePattern.test(entry['End Date'])) {
-                errors.push(`第 ${lineNumber} 行：結束日期格式錯誤 "${entry['End Date']}"，應為 YYYY-MM-DD 格式`);
+            if (entry['End Date'] && !requiredDatePattern.test(entry['End Date'])) {
+                errors.push(`第 ${lineNumber} 行：結束日期格式錯誤 "${entry['End Date']}"，應為 YYYY/MM/DD 格式（需零填充，如：2025/06/09）`);
             }
             
             return {
                 ruleName: '日期格式檢查',
                 passed: errors.length === 0,
                 errors: errors,
-                description: '檢查日期是否符合 YYYY-MM-DD 格式'
+                description: '檢查日期是否符合 YYYY/MM/DD 格式（需零填充）'
             };
         }
         
@@ -676,6 +723,30 @@
             };
         }
         
+        // 10. Weekly total regular hours validation (must be 40 hours)
+        function validateWeeklyTotalHours(entries) {
+            const errors = [];
+            
+            // Calculate total regular hours for the week
+            let totalRegularHours = 0;
+            entries.forEach((entry, index) => {
+                const regularHours = parseFloat(entry['Regular Hours']) || 0;
+                totalRegularHours += regularHours;
+            });
+            
+            // Check if total is exactly 40 hours
+            if (totalRegularHours !== 40) {
+                errors.push(`全週正常工時加總 ${totalRegularHours} 小時，不等於要求的 40 小時`);
+            }
+            
+            return {
+                ruleName: '週總工時檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查全週正常工時加總是否為 40 小時'
+            };
+        }
+        
         // Master validation function
         async function validateCSVFile(file) {
             try {
@@ -740,6 +811,27 @@
                         }
                     });
                 });
+                
+                // Add weekly total hours validation
+                const weeklyTotalRule = validateWeeklyTotalHours(entries);
+                if (weeklyTotalRule.passed) {
+                    totalPassed++;
+                } else {
+                    totalFailed++;
+                }
+                
+                const existingWeeklyRule = validationResults.find(r => r.ruleName === weeklyTotalRule.ruleName);
+                if (existingWeeklyRule) {
+                    existingWeeklyRule.errors.push(...weeklyTotalRule.errors);
+                    existingWeeklyRule.passed = existingWeeklyRule.passed && weeklyTotalRule.passed;
+                } else {
+                    validationResults.push({
+                        ruleName: weeklyTotalRule.ruleName,
+                        description: weeklyTotalRule.description,
+                        passed: weeklyTotalRule.passed,
+                        errors: [...weeklyTotalRule.errors]
+                    });
+                }
                 
                 const overallResult = totalFailed === 0 ? 'PASS' : 'FAIL';
                 
@@ -896,6 +988,28 @@
                 tbody.appendChild(row);
             });
             
+            // Check if we should show the export button (only date format errors)
+            const exportButton = document.getElementById('btn-export-corrected');
+            if (fileData.results && !fileData.results.overallResult) {
+                // Check if only date format errors exist
+                const onlyDateFormatErrors = fileData.results.validationResults.every(rule => {
+                    if (rule.passed) return true; // Passed rules are ok
+                    return rule.ruleName === '日期格式檢查'; // Only date format check failures are acceptable
+                });
+                
+                const hasDateFormatErrors = fileData.results.validationResults.some(rule => 
+                    rule.ruleName === '日期格式檢查' && !rule.passed
+                );
+                
+                if (onlyDateFormatErrors && hasDateFormatErrors) {
+                    exportButton.style.display = 'inline-block';
+                } else {
+                    exportButton.style.display = 'none';
+                }
+            } else {
+                exportButton.style.display = 'none';
+            }
+            
             detailContent.classList.remove('hidden');
         }
         
@@ -981,6 +1095,126 @@
             }
         }
         
+        function revalidateCurrentFile() {
+            if (!currentSelectedFile) {
+                alert('請先選擇要重新驗證的檔案');
+                return;
+            }
+            
+            const fileInfo = validationFiles.get(currentSelectedFile);
+            if (fileInfo) {
+                validateSingleFile(fileInfo.file);
+            }
+        }
+        
+        function removeCurrentFile() {
+            if (!currentSelectedFile) {
+                alert('請先選擇要移除的檔案');
+                return;
+            }
+            
+            if (confirm(`確定要移除檔案 "${currentSelectedFile}" 嗎？`)) {
+                validationFiles.delete(currentSelectedFile);
+                updateFileList();
+                updateSummaryCards();
+                
+                // Hide detail panel
+                document.getElementById('detail-content').classList.add('hidden');
+                document.getElementById('detail-panel-title').textContent = '🔍 Select a file to view detailed validation results';
+                currentSelectedFile = null;
+            }
+        }
+        
+        function exportCorrectedFile() {
+            if (!currentSelectedFile) {
+                alert('請先選擇要匯出的檔案');
+                return;
+            }
+            
+            const fileInfo = validationFiles.get(currentSelectedFile);
+            if (!fileInfo || !fileInfo.data) {
+                alert('無法取得檔案資料');
+                return;
+            }
+            
+            try {
+                // Create corrected CSV content with proper date format
+                const correctedData = fileInfo.data.map(entry => {
+                    const correctedEntry = { ...entry };
+                    
+                    // Apply date format normalization to YYYY/MM/DD
+                    if (correctedEntry.Date) {
+                        correctedEntry.Date = normalizeDateFormat(correctedEntry.Date);
+                    }
+                    if (correctedEntry['Start Date']) {
+                        correctedEntry['Start Date'] = normalizeDateFormat(correctedEntry['Start Date']);
+                    }
+                    if (correctedEntry['End Date']) {
+                        correctedEntry['End Date'] = normalizeDateFormat(correctedEntry['End Date']);
+                    }
+                    
+                    return correctedEntry;
+                });
+                
+                // Generate CSV headers
+                const headers = [
+                    'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
+                    'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
+                    'Comments', 'PM', 'InternalOrOutsource'
+                ];
+                
+                // Generate CSV rows
+                const csvRows = [headers];
+                correctedData.forEach(entry => {
+                    csvRows.push([
+                        entry.Name || '',
+                        entry.Zone || '',
+                        entry.Project || '',
+                        entry['Product Module'] || '',
+                        entry['Activity Type'] || '',
+                        entry.Task || '',
+                        entry['Regular Hours'] || '',
+                        entry['OT Hours'] || '',
+                        entry.TTL_Hours || '',
+                        entry.Date || '',
+                        entry['Start Date'] || '',
+                        entry['End Date'] || '',
+                        entry.Comments || '',
+                        entry.PM || '',
+                        entry.InternalOrOutsource || ''
+                    ]);
+                });
+                
+                // Generate CSV content with proper escaping
+                const csvContent = csvRows.map(row =>
+                    row.map(field => {
+                        const fieldStr = String(field);
+                        if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',')
+                ).join('\n');
+                
+                // Create download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${currentSelectedFile.replace('.csv', '')}_corrected.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                alert(`已匯出格式修正版：${currentSelectedFile.replace('.csv', '')}_corrected.csv`);
+                
+            } catch (error) {
+                console.error('匯出失敗:', error);
+                alert('匯出失敗，請檢查控制台錯誤訊息');
+            }
+        }
+        
         // ==================== INITIALIZATION ====================
         
         document.addEventListener('DOMContentLoaded', async function() {
@@ -1032,6 +1266,9 @@
             document.getElementById('btn-select-files').addEventListener('click', () => fileInput.click());
             document.getElementById('btn-validate-all').addEventListener('click', validateAllFiles);
             document.getElementById('btn-clear-all').addEventListener('click', clearAllFiles);
+            document.getElementById('btn-export-corrected').addEventListener('click', exportCorrectedFile);
+            document.getElementById('btn-revalidate-file').addEventListener('click', revalidateCurrentFile);
+            document.getElementById('btn-remove-file').addEventListener('click', removeCurrentFile);
             
             console.log('✅ TPM 驗證儀表板初始化完成');
         });
