@@ -147,6 +147,94 @@
         
         .rule-status {
             display: flex;
+        }
+        
+        /* Export Check Modal Styles */
+        .export-check-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .export-check-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .export-check-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+        }
+        
+        .export-check-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .export-check-table th,
+        .export-check-table td {
+            padding: 12px 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+        
+        .export-check-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .export-check-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .export-check-table tr:hover {
+            background-color: #e3f2fd;
+        }
+        
+        .status-icon {
+            font-size: 16px;
+            margin-right: 5px;
+        }
+        
+        .export-actions {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .export-actions button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        
+        .select-all-section {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
             align-items: center;
             gap: 8px;
         }
@@ -1276,7 +1364,344 @@
                 return;
             }
             
-            // Create detailed file status list
+            // Show export check modal instead of simple confirmation
+            showExportCheckModal(passedFiles, failedFiles);
+        }
+        
+        // ==================== EXPORT CHECK MODAL FUNCTIONS ====================
+        
+        function showExportCheckModal(passedFiles, failedFiles) {
+            const modal = document.getElementById('export-check-modal');
+            const tableBody = document.getElementById('export-check-table-body');
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            
+            // Clear previous content
+            tableBody.innerHTML = '';
+            
+            // Get file analysis for duplicate checking
+            let fileInfo = null;
+            if (previousExportData && previousExportData.length > 0) {
+                fileInfo = checkDuplicateFiles();
+            }
+            
+            // Store file data for later use
+            window.exportCheckData = {
+                passedFiles: passedFiles,
+                failedFiles: failedFiles,
+                fileInfo: fileInfo,
+                selectedFiles: new Set()
+            };
+            
+            // Add previous export row if exists
+            if (previousExportData && previousExportData.length > 0) {
+                const row = document.createElement('tr');
+                row.style.backgroundColor = '#e8f5e8';
+                row.innerHTML = `
+                    <td>-</td>
+                    <td><strong>之前的匯出檔案</strong></td>
+                    <td><span class="status-icon">✅</span>會匯出</td>
+                    <td><span class="status-icon">✅</span>已驗證</td>
+                    <td><span class="status-icon">-</span>N/A</td>
+                    <td>基準檔案</td>
+                    <td>${previousExportData.length}</td>
+                    <td>作為合併基準，總是包含</td>
+                `;
+                tableBody.appendChild(row);
+            }
+            
+            // Add passed files
+            passedFiles.forEach(file => {
+                const recordCount = file.data ? file.data.length : 0;
+                let willExport = true;
+                let hasDuplicates = false;
+                let duplicateWith = '';
+                let duplicateCount = 0;
+                let explanation = '';
+                
+                // Check for duplicates if we have previous export data
+                if (fileInfo) {
+                    const isValid = fileInfo.validFiles.find(f => f.fileName === file.fileName);
+                    const isInvalid = fileInfo.invalidFiles.find(f => f.fileName === file.fileName);
+                    
+                    if (isInvalid) {
+                        willExport = false;
+                        hasDuplicates = true;
+                        duplicateWith = '之前匯出檔案';
+                        duplicateCount = isInvalid.duplicateCount;
+                        explanation = `與之前匯出檔案有 ${duplicateCount} 筆重複記錄，整個檔案被排除`;
+                    } else if (isValid) {
+                        willExport = true;
+                        hasDuplicates = false;
+                        explanation = '驗證通過且無重複記錄';
+                    }
+                } else {
+                    explanation = '驗證通過，無之前匯出檔案可比較';
+                }
+                
+                const row = document.createElement('tr');
+                const checkboxId = `file-checkbox-${file.fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                row.innerHTML = `
+                    <td>
+                        ${willExport ? `<input type="checkbox" id="${checkboxId}" ${willExport ? 'checked' : ''} onchange="updateFileSelection('${file.fileName}', this.checked)">` : '-'}
+                    </td>
+                    <td>${file.fileName}</td>
+                    <td>
+                        <span class="status-icon">${willExport ? '✅' : '❌'}</span>
+                        ${willExport ? '會匯出' : '不會匯出'}
+                    </td>
+                    <td><span class="status-icon">✅</span>通過</td>
+                    <td>
+                        <span class="status-icon">${hasDuplicates ? '⚠️' : '✅'}</span>
+                        ${hasDuplicates ? '有重複' : '無重複'}
+                    </td>
+                    <td>${duplicateWith || '-'}</td>
+                    <td>${recordCount}</td>
+                    <td>${explanation}</td>
+                `;
+                
+                tableBody.appendChild(row);
+                
+                // Add to selected files if will export
+                if (willExport) {
+                    window.exportCheckData.selectedFiles.add(file.fileName);
+                }
+            });
+            
+            // Add failed files
+            failedFiles.forEach(fileName => {
+                const row = document.createElement('tr');
+                row.style.backgroundColor = '#ffe6e6';
+                row.innerHTML = `
+                    <td>-</td>
+                    <td>${fileName}</td>
+                    <td><span class="status-icon">❌</span>不會匯出</td>
+                    <td><span class="status-icon">❌</span>未通過</td>
+                    <td><span class="status-icon">-</span>N/A</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>未通過TPM驗證規則</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Set up select all checkbox
+            selectAllCheckbox.onchange = function() {
+                const checkboxes = tableBody.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                    const fileName = cb.id.replace('file-checkbox-', '').replace(/_/g, ' ');
+                    updateFileSelection(fileName, this.checked);
+                });
+            };
+            
+            updateExportSummary();
+            modal.style.display = 'block';
+        }
+        
+        function updateFileSelection(fileName, isSelected) {
+            if (isSelected) {
+                window.exportCheckData.selectedFiles.add(fileName);
+            } else {
+                window.exportCheckData.selectedFiles.delete(fileName);
+            }
+            updateExportSummary();
+        }
+        
+        function updateExportSummary() {
+            const summary = document.getElementById('export-summary');
+            const selectionSummary = document.getElementById('selection-summary');
+            
+            const selectedCount = window.exportCheckData.selectedFiles.size;
+            const availableCount = window.exportCheckData.passedFiles.filter(f => {
+                if (!window.exportCheckData.fileInfo) return true;
+                return window.exportCheckData.fileInfo.validFiles.find(vf => vf.fileName === f.fileName);
+            }).length;
+            
+            let totalRecords = previousExportData ? previousExportData.length : 0;
+            window.exportCheckData.selectedFiles.forEach(fileName => {
+                const file = window.exportCheckData.passedFiles.find(f => f.fileName === fileName);
+                if (file && file.data) {
+                    totalRecords += file.data.length;
+                }
+            });
+            
+            selectionSummary.textContent = `已選擇 ${selectedCount} / ${availableCount} 個可匯出檔案`;
+            
+            summary.innerHTML = `
+                <h4>📊 匯出摘要</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <p><strong>檔案統計：</strong></p>
+                        <ul>
+                            <li>可選擇檔案：${availableCount} 個</li>
+                            <li>已選擇檔案：${selectedCount} 個</li>
+                            <li>無法匯出檔案：${window.exportCheckData.failedFiles.length + (window.exportCheckData.fileInfo ? window.exportCheckData.fileInfo.invalidFiles.length : 0)} 個</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>記錄統計：</strong></p>
+                        <ul>
+                            ${previousExportData ? `<li>之前匯出：${previousExportData.length} 筆</li>` : ''}
+                            <li>本次選擇：${totalRecords - (previousExportData ? previousExportData.length : 0)} 筆</li>
+                            <li><strong>總計：${totalRecords} 筆</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function closeExportCheckModal() {
+            document.getElementById('export-check-modal').style.display = 'none';
+        }
+        
+        function proceedWithSelectedExport() {
+            const selectedFiles = Array.from(window.exportCheckData.selectedFiles);
+            
+            if (selectedFiles.length === 0 && (!previousExportData || previousExportData.length === 0)) {
+                alert('請至少選擇一個檔案進行匯出');
+                return;
+            }
+            
+            // Filter selected files
+            const filesToExport = window.exportCheckData.passedFiles.filter(f => 
+                selectedFiles.includes(f.fileName)
+            );
+            
+            closeExportCheckModal();
+            performActualExport(filesToExport);
+        }
+        
+        function performActualExport(filesToExport) {
+            // This is the actual export logic separated from the UI
+            try {
+                // Combine all data: previous export + selected current files
+                const allData = [];
+                let previousContribution = 0;
+                let currentContribution = 0;
+                
+                // First, add previous export data if available
+                if (previousExportData && previousExportData.length > 0) {
+                    previousExportData.forEach(entry => {
+                        const normalizedEntry = { ...entry };
+                        
+                        if (normalizedEntry.Date) {
+                            normalizedEntry.Date = normalizeDateFormat(normalizedEntry.Date);
+                        }
+                        if (normalizedEntry['Start Date']) {
+                            normalizedEntry['Start Date'] = normalizeDateFormat(normalizedEntry['Start Date']);
+                        }
+                        if (normalizedEntry['End Date']) {
+                            normalizedEntry['End Date'] = normalizeDateFormat(normalizedEntry['End Date']);
+                        }
+                        
+                        allData.push(normalizedEntry);
+                        previousContribution++;
+                    });
+                }
+                
+                // Then, add selected current file data
+                filesToExport.forEach(file => {
+                    if (file.data && Array.isArray(file.data)) {
+                        file.data.forEach(entry => {
+                            const normalizedEntry = { ...entry };
+                            
+                            if (normalizedEntry.Date) {
+                                normalizedEntry.Date = normalizeDateFormat(normalizedEntry.Date);
+                            }
+                            if (normalizedEntry['Start Date']) {
+                                normalizedEntry['Start Date'] = normalizeDateFormat(normalizedEntry['Start Date']);
+                            }
+                            if (normalizedEntry['End Date']) {
+                                normalizedEntry['End Date'] = normalizeDateFormat(normalizedEntry['End Date']);
+                            }
+                            
+                            allData.push(normalizedEntry);
+                            currentContribution++;
+                        });
+                    }
+                });
+                
+                if (allData.length === 0) {
+                    alert('選擇的檔案中沒有有效的資料');
+                    return;
+                }
+                
+                // Generate CSV headers
+                const headers = [
+                    'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
+                    'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
+                    'Comments', 'PM', 'InternalOrOutsource'
+                ];
+                
+                // Generate CSV rows
+                const csvRows = [headers];
+                allData.forEach(entry => {
+                    csvRows.push([
+                        entry.Name || '',
+                        entry.Zone || '',
+                        entry.Project || '',
+                        entry['Product Module'] || '',
+                        entry['Activity Type'] || '',
+                        entry.Task || '',
+                        entry['Regular Hours'] || '',
+                        entry['OT Hours'] || '',
+                        entry.TTL_Hours || '',
+                        entry.Date || '',
+                        entry['Start Date'] || '',
+                        entry['End Date'] || '',
+                        entry.Comments || '',
+                        entry.PM || '',
+                        entry.InternalOrOutsource || ''
+                    ]);
+                });
+                
+                // Generate CSV content with proper escaping
+                const csvContent = csvRows.map(row =>
+                    row.map(field => {
+                        const fieldStr = String(field);
+                        if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',')
+                ).join('\n');
+                
+                // Create download with timestamp
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `TPM_Validated_Combined_${timestamp}.csv`;
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Create success message
+                let successMessage = `🎉 匯出成功！\n\n`;
+                successMessage += `📁 檔案名稱：${filename}\n`;
+                successMessage += `📊 最終記錄數：${allData.length} 筆\n\n`;
+                successMessage += `📋 合併統計：\n`;
+                
+                if (previousExportData && previousExportData.length > 0) {
+                    successMessage += `  • 之前匯出檔案：${previousContribution} 筆記錄\n`;
+                }
+                successMessage += `  • 本次選擇檔案：${filesToExport.length} 個，${currentContribution} 筆記錄\n`;
+                
+                alert(successMessage);
+                
+            } catch (error) {
+                console.error('匯出失敗:', error);
+                alert('匯出失敗，請檢查控制台錯誤訊息');
+            }
+        }
+        
+        // Remove old
             let confirmMessage = `📋 匯出檔案狀態清單：\n\n`;
             
             // Show previous export file status if exists
@@ -1729,5 +2154,52 @@
             console.log('✅ TPM 驗證儀表板初始化完成');
         });
     </script>
+
+    <!-- Export Check Modal -->
+    <div id="export-check-modal" class="export-check-modal">
+        <div class="export-check-content">
+            <div class="export-check-header">
+                <h2>📋 TPM 匯出檢查清單</h2>
+                <p>請檢查以下檔案狀態，並選擇要匯出的檔案</p>
+            </div>
+            
+            <div class="select-all-section">
+                <label>
+                    <input type="checkbox" id="select-all-checkbox"> 
+                    <strong>全選/取消全選可匯出的檔案</strong>
+                </label>
+                <span id="selection-summary" style="margin-left: 20px; color: #666;"></span>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="export-check-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">選擇</th>
+                            <th style="width: 200px;">檔案名稱</th>
+                            <th style="width: 80px;">會匯出</th>
+                            <th style="width: 100px;">驗證通過</th>
+                            <th style="width: 80px;">有重複</th>
+                            <th style="width: 150px;">重複檔案</th>
+                            <th style="width: 80px;">記錄數</th>
+                            <th>說明</th>
+                        </tr>
+                    </thead>
+                    <tbody id="export-check-table-body">
+                        <!-- Table rows will be dynamically generated -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="export-summary" style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+                <!-- Summary will be dynamically generated -->
+            </div>
+            
+            <div class="export-actions">
+                <button class="btn btn-secondary" onclick="closeExportCheckModal()">取消</button>
+                <button class="btn btn-primary" onclick="proceedWithSelectedExport()">確認匯出選中的檔案</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
