@@ -1293,6 +1293,7 @@ async function confirmWeekSelection() {
     let weekKey;
     if (selectedOption.value === 'this') {
         weekKey = getThisWeekKey();
+        console.log('📅 This week key:', weekKey);
     } else if (selectedOption.value === 'last') {
         weekKey = getLastWeekKey();
     } else if (selectedOption.value === 'custom') {
@@ -1314,8 +1315,17 @@ async function confirmWeekSelection() {
     if (isImportMode) {
         // Store target week and trigger file picker
         window.importTargetWeek = weekKey;
+        console.log('🎯 Import target week set to:', weekKey);
         const input = document.getElementById('import-file');
-        input.click();
+        console.log('📂 File input element found:', !!input);
+        if (input) {
+            // 清空 input.value 確保 change 事件能被觸發（即使選擇同一個檔案）
+            input.value = '';
+            console.log('🖱️ Triggering file picker...');
+            input.click();
+        } else {
+            console.error('❌ File input element not found!');
+        }
     } else {
         // Original new timesheet logic
         const timesheets = loadAllTimesheets();
@@ -1803,21 +1813,31 @@ async function initProjectAndProductSelect(projectValue, productValue) {
 
 // 更新PM欄位函數
 async function updatePMField() {
+    const selectedZone = document.getElementById('zone')?.value;
     const selectedProject = document.getElementById('project')?.value;
     const pmField = document.getElementById('pm');
     
-    console.log('updatePMField called, selectedProject:', selectedProject);
+    console.log('updatePMField called, selectedZone:', selectedZone, 'selectedProject:', selectedProject);
     
-    if (selectedProject && pmField) {
+    if (selectedZone && selectedProject && pmField) {
         const projectList = await fetchCSV('projectcode.csv');
-        const project = projectList.find(p => p.Project === selectedProject);
-        console.log('Found project:', project);
+        // 同時考慮 Zone 和 Project 來查找 PM
+        const project = projectList.find(p => 
+            p.Zone === selectedZone && p.Project === selectedProject
+        );
+        console.log('Found project by Zone + Project:', project);
         if (project && project.PM) {
             pmField.value = project.PM;
             console.log('PM field updated to:', project.PM);
         } else {
             pmField.value = '';
-            console.log('PM field cleared (no PM found)');
+            console.log('PM field cleared (no PM found for Zone + Project combination)');
+        }
+    } else {
+        // 如果 Zone 或 Project 未選擇，清空 PM 欄位
+        if (pmField) {
+            pmField.value = '';
+            console.log('PM field cleared (Zone or Project not selected)');
         }
     }
 }
@@ -2688,9 +2708,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 綁定檔案輸入事件
         const fileInput = document.getElementById('import-file');
+        console.log('🔧 Setting up file input event listener, fileInput found:', !!fileInput);
         if (fileInput) {
             fileInput.addEventListener('change', function(e) {
+                console.log('📁 File input change event triggered');
                 const file = e.target.files[0];
+                console.log('📄 Selected file:', file ? file.name : 'No file selected');
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = async function(e) {
@@ -2699,13 +2722,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (csvData.length > 0) {
                                 // Handle basic info from CSV
                                 const csvBasicInfo = extractBasicInfoFromCSV(csvData);
+                                console.log('👤 Extracted basic info from CSV:', csvBasicInfo);
                                 const shouldContinue = await handleBasicInfoImport(csvBasicInfo);
+                                console.log('✅ Basic info import result:', shouldContinue);
                                 if (!shouldContinue) {
                                     return; // User cancelled import
                                 }
                                 
                                 // Use selected target week or default to last week
                                 const targetWeekKey = window.importTargetWeek || getLastWeekKey();
+                                console.log('📋 CSV Import - Target week:', targetWeekKey, '(from window.importTargetWeek:', window.importTargetWeek, ')');
                                 const sourceWeekKey = detectSourceWeekFromCSV(csvData);
                                 const timesheets = loadAllTimesheets();
                                 
@@ -2775,13 +2801,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
                                 // Re-render cards if import was successful (not cancelled)
                                 if (importMode && importMode !== 0) {
+                                    console.log('🔄 Re-rendering timesheet cards after import');
                                     if (typeof renderTimesheetCards === 'function') {
                                         renderTimesheetCards();
+                                    } else {
+                                        console.error('❌ renderTimesheetCards function not found');
                                     }
+                                } else {
+                                    console.log('❌ Import mode invalid or cancelled:', importMode);
                                 }
 
                                 // Reset file input
-                                event.target.value = '';
+                                e.target.value = '';
                                 window.importTargetWeek = null;
                             }
                         } catch (err) {

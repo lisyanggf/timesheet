@@ -108,7 +108,10 @@ zoneSelect.addEventListener('change', function() {
 });
 ```
 
-**Important**: PM lookup must consider both Zone AND Project because projects with the same name can exist across different zones.
+**Important**: PM lookup must consider both Zone AND Project because projects with the same name can exist across different zones. For example:
+- ERP zone + "Maintenance" project → PM: "barry"  
+- Customer Portal zone + "Maintenance" project → PM: might be different
+The lookup uses: `projectList.find(p => p.Zone === selectedZone && p.Project === selectedProject)`
 
 ### Basic Info Import Dialog Patterns
 When implementing basic info conflict handling:

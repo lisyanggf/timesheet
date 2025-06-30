@@ -146,7 +146,7 @@ A: Check the specific validation rules in the TPM validator dashboard. Common is
 
 ## Version Information
 
-This documentation is for Timesheet Application v3.0.2 which includes:
+This documentation is for Timesheet Application v3.0.3 which includes:
 - Admin/Training activity validation feature
 - Unified YYYY/MM/DD date format
 - CSV import/export with conflict resolution
