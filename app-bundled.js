@@ -398,19 +398,415 @@ function showBasicInfoChoiceDialog(message, option1Text, option2Text, isConfirmD
 
 // 顯示三選項對話框（用於匯入模式選擇）
 function showThreeChoiceDialog(message, option1, option2, option3) {
-    const choice = prompt(
-        `${message}\n\n` +
-        `請輸入選項號碼：\n` +
-        `1. ${option1}\n` +
-        `2. ${option2}\n` +
-        `3. ${option3}\n\n` +
-        `請輸入 1、2 或 3：`
-    );
-    
-    if (choice === '1') return 1;
-    if (choice === '2') return 2;
-    if (choice === '3') return 3;
-    return null; // 取消或無效輸入
+    return new Promise((resolve) => {
+        // 創建對話框元素
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        messageP.style.cssText = `
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-line;
+        `;
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        `;
+
+        const createButton = (text, value, isPrimary = false) => {
+            const button = document.createElement('button');
+            button.textContent = text;
+            button.style.cssText = `
+                padding: 10px 20px;
+                border: ${isPrimary ? 'none' : '1px solid #ddd'};
+                background: ${isPrimary ? '#007bff' : 'white'};
+                color: ${isPrimary ? 'white' : '#333'};
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                min-width: 120px;
+                transition: all 0.2s;
+            `;
+            
+            button.addEventListener('mouseenter', () => {
+                button.style.background = isPrimary ? '#0056b3' : '#f8f9fa';
+            });
+            
+            button.addEventListener('mouseleave', () => {
+                button.style.background = isPrimary ? '#007bff' : 'white';
+            });
+            
+            button.addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                resolve(value);
+            });
+            
+            return button;
+        };
+
+        const button1 = createButton(option1, 1, true);
+        const button2 = createButton(option2, 2);
+        const button3 = createButton(option3, 3);
+
+        buttonContainer.appendChild(button1);
+        buttonContainer.appendChild(button2);
+        buttonContainer.appendChild(button3);
+
+        dialog.appendChild(messageP);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // 預設焦點在第一個按鈕
+        button1.focus();
+    });
+}
+
+// 統一的按鈕式提示對話框
+function showAlert(message) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        messageP.style.cssText = `
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-line;
+        `;
+
+        const button = document.createElement('button');
+        button.textContent = '確定';
+        button.style.cssText = `
+            padding: 10px 30px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        
+        button.addEventListener('mouseenter', () => {
+            button.style.background = '#0056b3';
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.style.background = '#007bff';
+        });
+        
+        button.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(true);
+        });
+
+        dialog.appendChild(messageP);
+        dialog.appendChild(button);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        button.focus();
+    });
+}
+
+// 統一的按鈕式確認對話框
+function showConfirm(message) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        messageP.style.cssText = `
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-line;
+        `;
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        `;
+
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = '確定';
+        confirmButton.style.cssText = `
+            padding: 10px 20px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = '取消';
+        cancelButton.style.cssText = `
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        
+        confirmButton.addEventListener('mouseenter', () => {
+            confirmButton.style.background = '#0056b3';
+        });
+        
+        confirmButton.addEventListener('mouseleave', () => {
+            confirmButton.style.background = '#007bff';
+        });
+        
+        cancelButton.addEventListener('mouseenter', () => {
+            cancelButton.style.background = '#f8f9fa';
+        });
+        
+        cancelButton.addEventListener('mouseleave', () => {
+            cancelButton.style.background = 'white';
+        });
+        
+        confirmButton.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(true);
+        });
+        
+        cancelButton.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(false);
+        });
+
+        buttonContainer.appendChild(confirmButton);
+        buttonContainer.appendChild(cancelButton);
+        dialog.appendChild(messageP);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        confirmButton.focus();
+    });
+}
+
+// 統一的按鈕式輸入對話框
+function showPrompt(message, defaultValue = '') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        messageP.style.cssText = `
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-line;
+        `;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = defaultValue;
+        input.style.cssText = `
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        `;
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        `;
+
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = '確定';
+        confirmButton.style.cssText = `
+            padding: 10px 20px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = '取消';
+        cancelButton.style.cssText = `
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        
+        confirmButton.addEventListener('mouseenter', () => {
+            confirmButton.style.background = '#0056b3';
+        });
+        
+        confirmButton.addEventListener('mouseleave', () => {
+            confirmButton.style.background = '#007bff';
+        });
+        
+        cancelButton.addEventListener('mouseenter', () => {
+            cancelButton.style.background = '#f8f9fa';
+        });
+        
+        cancelButton.addEventListener('mouseleave', () => {
+            cancelButton.style.background = 'white';
+        });
+        
+        const handleConfirm = () => {
+            const value = input.value.trim();
+            document.body.removeChild(overlay);
+            resolve(value || null);
+        };
+        
+        const handleCancel = () => {
+            document.body.removeChild(overlay);
+            resolve(null);
+        };
+        
+        confirmButton.addEventListener('click', handleConfirm);
+        cancelButton.addEventListener('click', handleCancel);
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleConfirm();
+            } else if (e.key === 'Escape') {
+                handleCancel();
+            }
+        });
+
+        buttonContainer.appendChild(confirmButton);
+        buttonContainer.appendChild(cancelButton);
+        dialog.appendChild(messageP);
+        dialog.appendChild(input);
+        dialog.appendChild(buttonContainer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        input.focus();
+        input.select();
+    });
 }
 
 // 處理基本資料匯入邏輯
@@ -680,23 +1076,23 @@ function renderTimesheetCards() {
     });
 
     document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const weekKey = btn.getAttribute('data-week');
-            deleteTimesheet(weekKey);
+            await deleteTimesheet(weekKey);
         });
     });
 
     document.querySelectorAll('.btn-copy').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const weekKey = btn.getAttribute('data-week');
-            showCopyOptionsModal(weekKey);
+            await showCopyOptionsModal(weekKey);
         });
     });
 
     document.querySelectorAll('.btn-export').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const weekKey = btn.getAttribute('data-week');
-            exportTimesheet(weekKey);
+            await exportTimesheet(weekKey);
         });
     });
 
@@ -717,8 +1113,8 @@ function editTimesheet(weekKey) {
 }
 
 // 刪除工時表
-function deleteTimesheet(weekKey) {
-    if (confirm('確定要刪除 ' + weekKey + ' 的工時表嗎？')) {
+async function deleteTimesheet(weekKey) {
+    if (await showConfirm('確定要刪除 ' + weekKey + ' 的工時表嗎？')) {
         const timesheets = loadAllTimesheets();
         delete timesheets[weekKey];
         saveAllTimesheets(timesheets);
@@ -731,7 +1127,7 @@ function deleteTimesheet(weekKey) {
 async function exportTimesheet(weekKey) {
     const entries = getWeekEntries(weekKey);
     if (entries.length === 0) {
-        alert('該週沒有工時記錄可以匯出');
+        await showAlert('該週沒有工時記錄可以匯出');
         return;
     }
     
@@ -749,7 +1145,7 @@ async function exportTimesheet(weekKey) {
                        `• 確定：將正常工時調整為40小時，超出部分轉為加班工時\n` +
                        `• 取消：按原始工時匯出`;
         
-        shouldNormalize = confirm(message);
+        shouldNormalize = await showConfirm(message);
     }
     
     const csvContent = generateCSVContent(entries, shouldNormalize);
@@ -818,12 +1214,12 @@ function hideBasicInfoModal() {
 }
 
 // 儲存模態框中的基本資料
-function saveModalBasicInfo() {
+async function saveModalBasicInfo() {
     const employeeName = document.getElementById('modal-employeeName').value.trim();
     const employeeType = document.getElementById('modal-employeeType').value;
     
     if (!employeeName || !employeeType) {
-        alert('請填寫所有必填欄位');
+        await showAlert('請填寫所有必填欄位');
         return;
     }
     
@@ -924,7 +1320,7 @@ function confirmWeekSelection() {
         // Original new timesheet logic
         const timesheets = loadAllTimesheets();
         if (timesheets[weekKey] && timesheets[weekKey].length > 0) {
-            if (!confirm(`週次 ${weekKey} 已有工時記錄，是否繼續編輯？`)) {
+            if (!await showConfirm(`週次 ${weekKey} 已有工時記錄，是否繼續編輯？`)) {
                 return;
             }
         } else {
@@ -1229,9 +1625,9 @@ function showImportWeekSelectionModal() {
 // ==================== 複製模態框功能 ====================
 
 // 顯示複製選項模態框
-function showCopyOptionsModal(sourceWeekKey) {
+async function showCopyOptionsModal(sourceWeekKey) {
     // 簡化版本，暫時用 prompt 替代
-    const targetWeek = prompt(`請輸入要複製到的週次 (例如: 2024-W25):`);
+    const targetWeek = await showPrompt(`請輸入要複製到的週次 (例如: 2024-W25):`);
     if (targetWeek) {
         const timesheets = loadAllTimesheets();
         const sourceEntries = getWeekEntries(sourceWeekKey);
@@ -1488,17 +1884,17 @@ async function handleActivityTypeChange(activityType) {
         }, 200);
         
         // 顯示提示訊息
-        alert('已自動設置:\n• 區域: Admin\n• 專案: Admin\n• 產品模組: Non Product Non Product');
+        await showAlert('已自動設置:\n• 區域: Admin\n• 專案: Admin\n• 產品模組: Non Product Non Product');
     }
 }
 
 // 檢查是否可以變更 Zone（當活動類型為 Admin / Training 時不允許）
-function validateZoneChange(newZone) {
+async function validateZoneChange(newZone) {
     const activityTypeSelect = document.getElementById('activityType');
     const currentActivityType = activityTypeSelect?.value;
     
     if (currentActivityType === 'Admin / Training' && newZone !== 'Admin') {
-        alert('當活動類型為「Admin / Training」時，區域必須為「Admin」。\n如需變更區域，請先選擇其他活動類型。');
+        await showAlert('當活動類型為「Admin / Training」時，區域必須為「Admin」。\n如需變更區域，請先選擇其他活動類型。');
         
         // 將 Zone 重新設置為 Admin
         const zoneSelect = document.getElementById('zone');
@@ -1624,10 +2020,10 @@ function copyEntry(entryId) {
 }
 
 // 刪除單個記錄
-function deleteEntry(entryId) {
+async function deleteEntry(entryId) {
     console.log('deleteEntry called with entryId:', entryId);
     
-    if (confirm('確定要刪除這筆記錄嗎？')) {
+    if (await showConfirm('確定要刪除這筆記錄嗎？')) {
         const params = new URLSearchParams(window.location.search);
         const weekKey = params.get('week');
         console.log('weekKey:', weekKey);
@@ -1928,7 +2324,7 @@ function setupTableEventDelegation() {
 }
 
 // 處理表格按鈕點擊事件
-function handleTableButtonClick(event) {
+async function handleTableButtonClick(event) {
     const target = event.target;
     console.log('Table button click detected:', target);
     
@@ -1953,7 +2349,7 @@ function handleTableButtonClick(event) {
         copyEntry(entryId);
     } else if (target.classList.contains('btn-delete-entry')) {
         console.log('Calling deleteEntry');
-        deleteEntry(entryId);
+        await deleteEntry(entryId);
     } else {
         console.log('Unknown button type');
     }
