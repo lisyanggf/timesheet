@@ -786,6 +786,7 @@
                         failedRules: 0,
                         overallResult: 'FAIL',
                         validationResults: [],
+                        data: [], // Add empty data array for consistency
                         summary: '檔案為空或格式錯誤'
                     };
                 }
@@ -867,6 +868,7 @@
                     failedRules: totalFailed,
                     overallResult: overallResult,
                     validationResults: validationResults,
+                    data: entries, // Include the parsed data
                     summary: `共 ${entries.length} 筆記錄，${totalFailed} 個驗證錯誤`
                 };
                 
@@ -880,6 +882,7 @@
                     failedRules: 0,
                     overallResult: 'ERROR',
                     validationResults: [],
+                    data: [], // Empty data array for error case
                     summary: `驗證時發生錯誤: ${error.message}`
                 };
             }
@@ -1093,6 +1096,7 @@
                 // Update results
                 fileData.status = results.status;
                 fileData.results = results;
+                fileData.data = results.data; // Store the parsed data
                 
                 completedFiles++;
                 
