@@ -1276,36 +1276,82 @@
                 return;
             }
             
-            // Create detailed confirmation message
-            let confirmMessage = `準備匯出驗證結果：\n\n`;
-            confirmMessage += `✅ 通過驗證的檔案 (${passedFiles.length} 個)：\n`;
-            passedFiles.forEach(file => {
-                confirmMessage += `   • ${file.fileName}\n`;
-            });
+            // Create detailed file status list
+            let confirmMessage = `📋 匯出檔案狀態清單：\n\n`;
             
+            // Show previous export file status if exists
+            if (previousExportData && previousExportData.length > 0) {
+                confirmMessage += `📥 之前的匯出檔案：\n`;
+                confirmMessage += `   ✅ 包含：${previousExportData.length} 筆記錄\n\n`;
+            }
+            
+            // Get file analysis for duplicate checking
+            let fileInfo = null;
+            if (previousExportData && previousExportData.length > 0) {
+                fileInfo = checkDuplicateFiles();
+            }
+            
+            // Show all files with their status
+            confirmMessage += `📁 目前檔案狀態：\n`;
+            
+            // Show passed files
+            if (passedFiles.length > 0) {
+                passedFiles.forEach(file => {
+                    const recordCount = file.data ? file.data.length : 0;
+                    let status = `✅ 通過驗證`;
+                    let willExport = true;
+                    
+                    // Check for duplicates if we have previous export data
+                    if (fileInfo) {
+                        const isValid = fileInfo.validFiles.find(f => f.fileName === file.fileName);
+                        const isInvalid = fileInfo.invalidFiles.find(f => f.fileName === file.fileName);
+                        
+                        if (isInvalid) {
+                            status = `⚠️ 通過驗證，但與之前匯出檔有 ${isInvalid.duplicateCount} 筆重複`;
+                            willExport = false;
+                        } else if (isValid) {
+                            status = `✅ 通過驗證，無重複記錄`;
+                            willExport = true;
+                        }
+                    }
+                    
+                    const exportStatus = willExport ? '🟢 會匯出' : '🔴 不會匯出';
+                    confirmMessage += `   • ${file.fileName} (${recordCount} 筆)\n`;
+                    confirmMessage += `     狀態：${status}\n`;
+                    confirmMessage += `     結果：${exportStatus}\n\n`;
+                });
+            }
+            
+            // Show failed files
             if (failedFiles.length > 0) {
-                confirmMessage += `\n❌ 未通過驗證的檔案 (${failedFiles.length} 個)：\n`;
                 failedFiles.forEach(fileName => {
                     confirmMessage += `   • ${fileName}\n`;
+                    confirmMessage += `     狀態：❌ 未通過驗證\n`;
+                    confirmMessage += `     結果：🔴 不會匯出\n\n`;
                 });
-                confirmMessage += `\n注意：未通過驗證的檔案將不會包含在匯出中。\n`;
             }
             
-            // Check if there's previous export data to merge
+            // Summary
+            let totalFilesToExport = 0;
+            let totalRecordsToExport = 0;
+            
             if (previousExportData && previousExportData.length > 0) {
-                confirmMessage += `\n📥 將合併之前的匯出資料：${previousExportData.length} 筆記錄\n`;
-                
-                // Check for duplicates before export
-                const duplicateInfo = checkDuplicateRecords();
-                if (duplicateInfo.duplicateCount > 0) {
-                    confirmMessage += `⚠️ 發現 ${duplicateInfo.duplicateCount} 筆重複記錄將被包含在匯出中\n`;
+                totalRecordsToExport += previousExportData.length;
+                if (fileInfo) {
+                    totalFilesToExport = fileInfo.validFiles.length;
+                    totalRecordsToExport += fileInfo.totalCurrentRecords;
+                } else {
+                    totalFilesToExport = passedFiles.length;
+                    totalRecordsToExport += passedFiles.reduce((sum, file) => sum + (file.data ? file.data.length : 0), 0);
                 }
+            } else {
+                totalFilesToExport = passedFiles.length;
+                totalRecordsToExport = passedFiles.reduce((sum, file) => sum + (file.data ? file.data.length : 0), 0);
             }
             
-            const totalNewRecords = passedFiles.reduce((sum, file) => sum + (file.data ? file.data.length : 0), 0);
-            const totalRecords = totalNewRecords + (previousExportData ? previousExportData.length : 0);
-            
-            confirmMessage += `\n總記錄數：${totalRecords} 筆`;
+            confirmMessage += `📊 匯出摘要：\n`;
+            confirmMessage += `   • 將匯出檔案：${totalFilesToExport} 個\n`;
+            confirmMessage += `   • 總記錄數：${totalRecordsToExport} 筆\n`;
             confirmMessage += `\n確定要匯出合併的 CSV 檔案嗎？`;
             
             if (!confirm(confirmMessage)) {
@@ -1313,7 +1359,19 @@
             }
             
             try {
-                // Combine all data: previous export + current passed files
+                // Determine which files to include (exclude files with any duplicates)
+                let filesToInclude = passedFiles;
+                let excludedFiles = [];
+                let previousContribution = 0;
+                let currentContribution = 0;
+                
+                if (previousExportData && previousExportData.length > 0) {
+                    const fileInfo = checkDuplicateFiles();
+                    filesToInclude = fileInfo.validFiles; // Only files without duplicates
+                    excludedFiles = fileInfo.invalidFiles;
+                }
+                
+                // Combine all data: previous export + valid current files
                 const allData = [];
                 
                 // First, add previous export data if available
@@ -1333,11 +1391,12 @@
                         }
                         
                         allData.push(normalizedEntry);
+                        previousContribution++;
                     });
                 }
                 
-                // Then, add current passed file data
-                passedFiles.forEach(file => {
+                // Then, add only valid current file data (files without duplicates)
+                filesToInclude.forEach(file => {
                     if (file.data && Array.isArray(file.data)) {
                         file.data.forEach(entry => {
                             // Apply date format normalization to ensure consistency
@@ -1354,6 +1413,7 @@
                             }
                             
                             allData.push(normalizedEntry);
+                            currentContribution++;
                         });
                     }
                 });
@@ -1418,18 +1478,29 @@
                 link.click();
                 document.body.removeChild(link);
                 
-                // Create detailed success message
+                // Create detailed success message with file-level exclusion statistics
                 let successMessage = `🎉 匯出成功！\n\n`;
                 successMessage += `📁 檔案名稱：${filename}\n`;
-                successMessage += `📊 總記錄數：${allData.length} 筆\n\n`;
-                successMessage += `📋 匯出內容：\n`;
+                successMessage += `📊 最終記錄數：${allData.length} 筆\n\n`;
                 
                 if (previousExportData && previousExportData.length > 0) {
-                    successMessage += `  • 之前的匯出資料：${previousExportData.length} 筆\n`;
+                    successMessage += `📋 合併統計：\n`;
+                    successMessage += `  • 之前匯出檔案：${previousContribution} 筆記錄\n`;
+                    successMessage += `  • 本次合併檔案：${filesToInclude.length} 個檔案，${currentContribution} 筆記錄\n`;
+                    
+                    if (excludedFiles.length > 0) {
+                        successMessage += `  • ❌ 排除檔案：${excludedFiles.length} 個（因重複記錄）\n`;
+                        excludedFiles.forEach(file => {
+                            successMessage += `    - ${file.fileName}（${file.duplicateCount} 筆重複）\n`;
+                        });
+                        successMessage += `\n📁 檔案級別排除：有任何重複記錄的檔案完全不包含。`;
+                    } else {
+                        successMessage += `\n✅ 所有通過驗證的檔案都已成功合併。`;
+                    }
+                } else {
+                    successMessage += `📋 匯出內容：\n`;
+                    successMessage += `  • 本次通過驗證：${allData.length} 筆 (來自 ${filesToInclude.length} 個檔案)\n`;
                 }
-                
-                const newRecords = allData.length - (previousExportData ? previousExportData.length : 0);
-                successMessage += `  • 本次通過驗證：${newRecords} 筆 (來自 ${passedFiles.length} 個檔案)\n`;
                 
                 if (failedFiles.length > 0) {
                     successMessage += `\n⚠️ 未包含 ${failedFiles.length} 個未通過驗證的檔案`;
@@ -1454,49 +1525,74 @@
         }
         
         // Check for duplicate records between previous export and current passed files
-        function checkDuplicateRecords() {
+        // If any duplicates found, the entire file containing duplicates will be excluded
+        function checkDuplicateFiles() {
             if (!previousExportData || previousExportData.length === 0) {
-                return { duplicateCount: 0, duplicateDetails: [] };
+                return { 
+                    duplicateFiles: [], 
+                    duplicateFileCount: 0,
+                    totalPreviousRecords: 0,
+                    totalCurrentRecords: 0,
+                    validFiles: [],
+                    invalidFiles: [],
+                    totalDuplicateRecords: 0
+                };
             }
             
-            // Get all current passed file data
-            const currentPassedData = [];
-            validationFiles.forEach((fileInfo, fileName) => {
-                if (fileInfo.results && fileInfo.results.overallResult === 'PASS' && fileInfo.data) {
-                    fileInfo.data.forEach(entry => {
-                        currentPassedData.push({
-                            fileName: fileName,
-                            entry: entry,
-                            key: generateRecordKey(entry)
-                        });
-                    });
-                }
-            });
-            
-            // Create a set of current record keys for fast lookup
-            const currentRecordKeys = new Set(currentPassedData.map(item => item.key));
-            
-            // Find duplicates in previous export data
-            const duplicates = [];
+            // Create a set of previous export record keys for fast lookup
             const previousRecordKeys = new Set();
-            
-            previousExportData.forEach((entry, index) => {
+            previousExportData.forEach(entry => {
                 const key = generateRecordKey(entry);
-                if (currentRecordKeys.has(key)) {
-                    duplicates.push({
-                        index: index,
-                        entry: entry,
-                        key: key
-                    });
-                }
                 previousRecordKeys.add(key);
             });
             
+            // Check each passed file for duplicates
+            const validFiles = [];
+            const invalidFiles = [];
+            let totalDuplicateRecords = 0;
+            
+            validationFiles.forEach((fileInfo, fileName) => {
+                if (fileInfo.results && fileInfo.results.overallResult === 'PASS' && fileInfo.data) {
+                    let fileHasDuplicates = false;
+                    let fileDuplicateCount = 0;
+                    
+                    // Check if any record in this file duplicates with previous export
+                    fileInfo.data.forEach(entry => {
+                        const key = generateRecordKey(entry);
+                        if (previousRecordKeys.has(key)) {
+                            fileHasDuplicates = true;
+                            fileDuplicateCount++;
+                        }
+                    });
+                    
+                    if (fileHasDuplicates) {
+                        invalidFiles.push({
+                            fileName: fileName,
+                            recordCount: fileInfo.data.length,
+                            duplicateCount: fileDuplicateCount
+                        });
+                        totalDuplicateRecords += fileDuplicateCount;
+                    } else {
+                        validFiles.push({
+                            fileName: fileName,
+                            recordCount: fileInfo.data.length,
+                            data: fileInfo.data
+                        });
+                    }
+                }
+            });
+            
+            const totalCurrentRecords = validFiles.reduce((sum, file) => sum + file.recordCount, 0);
+            
             return {
-                duplicateCount: duplicates.length,
-                duplicateDetails: duplicates,
+                duplicateFiles: invalidFiles,
+                duplicateFileCount: invalidFiles.length,
                 totalPreviousRecords: previousExportData.length,
-                totalCurrentRecords: currentPassedData.length
+                totalCurrentRecords: totalCurrentRecords,
+                validFiles: validFiles,
+                invalidFiles: invalidFiles,
+                totalDuplicateRecords: totalDuplicateRecords,
+                passedFileCount: validFiles.length
             };
         }
         
@@ -1517,36 +1613,37 @@
                     
                     previousExportData = parsedData;
                     
-                    // Check for duplicates with current passed files
-                    const duplicateInfo = checkDuplicateRecords();
+                    // Check file-level statistics with current passed files
+                    const fileInfo = checkDuplicateFiles();
                     
                     let displayText = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
-                    if (duplicateInfo.duplicateCount > 0) {
-                        displayText += ` - ⚠️ 發現 ${duplicateInfo.duplicateCount} 筆重複記錄`;
-                    }
                     
                     document.getElementById('previous-file-name').textContent = displayText;
                     document.getElementById('btn-clear-previous').style.display = 'inline-block';
                     
-                    // Show detailed duplicate information if any
-                    if (duplicateInfo.duplicateCount > 0) {
-                        console.log('🔍 重複記錄詳情:', duplicateInfo);
-                        const message = `載入之前的匯出檔案完成！\n\n` +
-                            `📊 統計資訊：\n` +
-                            `• 之前匯出檔案：${duplicateInfo.totalPreviousRecords} 筆記錄\n` +
-                            `• 目前通過驗證：${duplicateInfo.totalCurrentRecords} 筆記錄\n` +
-                            `• 重複記錄：${duplicateInfo.duplicateCount} 筆\n\n` +
-                            `⚠️ 注意：合併匯出時，重複的記錄將會包含在最終檔案中。\n` +
-                            `如果您不希望有重複記錄，請手動檢查並清理資料。`;
-                        alert(message);
+                    // Show file-level merge information with duplicate check
+                    let message = `載入之前的匯出檔案完成！\n\n` +
+                        `📊 重複檢查結果：\n` +
+                        `• 之前匯出檔案：${fileInfo.totalPreviousRecords} 筆記錄\n`;
+                    
+                    if (fileInfo.duplicateFileCount > 0) {
+                        message += `• 可合併檔案：${fileInfo.passedFileCount} 個，共 ${fileInfo.totalCurrentRecords} 筆記錄\n` +
+                            `• ⚠️ 因重複而排除：${fileInfo.duplicateFileCount} 個檔案\n`;
+                        
+                        message += `\n❌ 排除的檔案：\n`;
+                        fileInfo.invalidFiles.forEach(file => {
+                            message += `  • ${file.fileName}（${file.duplicateCount} 筆重複）\n`;
+                        });
+                        
+                        message += `\n📁 合併原則：檔案級別排除\n` +
+                            `• 有任何重複記錄的檔案：整個檔案排除\n` +
+                            `• 無重複記錄的檔案：完整包含`;
                     } else {
-                        alert(`載入之前的匯出檔案完成！\n\n` +
-                            `📊 統計資訊：\n` +
-                            `• 之前匯出檔案：${parsedData.length} 筆記錄\n` +
-                            `• 目前通過驗證：${duplicateInfo.totalCurrentRecords} 筆記錄\n` +
-                            `• 重複記錄：無\n\n` +
-                            `✅ 沒有發現重複記錄，可以安全合併。`);
+                        message += `• 可合併檔案：${fileInfo.passedFileCount} 個，共 ${fileInfo.totalCurrentRecords} 筆記錄\n` +
+                            `• ✅ 無重複檔案：所有通過驗證的檔案都可合併`;
                     }
+                    
+                    alert(message);
                     
                 } catch (error) {
                     alert('讀取之前的匯出檔案時發生錯誤，請確認檔案格式正確');
