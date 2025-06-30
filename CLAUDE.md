@@ -33,11 +33,11 @@ This is a Chinese timesheet management web application built with vanilla HTML, 
 ### Basic Info Import Handling
 - **Data Consistency Check**: When importing CSV files, the system compares CSV basic info with existing local data
 - **Consistent Data**: If data matches, shows confirmation dialog with "Continue Import" and "Cancel Import" options
-- **Inconsistent Data**: If data conflicts, shows selection dialog with only two options:
-  - "Use Local Data" - Keep current system data  
-  - "Use CSV Data" - Replace with imported data
-  - No cancel option - user must choose one of the two data sources
-- **User Experience**: Clean interface with only relevant buttons visible
+- **Inconsistent Data**: If data conflicts, shows selection dialog with three options:
+  - "Use Local Data" - Keep current system data and continue import
+  - "Use CSV Data" - Replace with imported data and continue import
+  - "Cancel Import" - Cancel the import operation entirely
+- **User Experience**: Always provide cancel option to give users full control over import process
 
 ## Development Commands
 
@@ -121,20 +121,21 @@ const choice = await showBasicInfoChoiceDialog(
     true // isConfirmDialog = true
 );
 
-// For inconsistent data - selection dialog  
-const choice = await showBasicInfoChoiceDialog(
+// For inconsistent data - selection dialog with cancel option
+const choice = await showThreeChoiceDialog(
     'Data conflict detected, choose which to use:',
-    localDataDisplay,
-    csvDataDisplay,
-    false // isConfirmDialog = false
+    'Use Local Data',
+    'Use CSV Data', 
+    'Cancel Import'
 );
 ```
 
 **Return Values**: 
 - `1` = First option selected (Continue/Use Local)
-- `2` = Second option selected (Cancel/Use CSV)
+- `2` = Second option selected (Use CSV)
+- `3` = Third option selected (Cancel Import)
 
-**Note**: For inconsistent data dialogs, only options 1 and 2 are available (no cancel option).
+**Note**: For both consistent and inconsistent data dialogs, a cancel option is always available to give users full control.
 
 ## Error Handling
 

@@ -444,15 +444,13 @@ async function handleBasicInfoImport(csvBasicInfo) {
     const typeConflict = csvType && currentType && csvType !== currentType;
     
     if (nameConflict || typeConflict) {
-        const conflictMessage = '發現基本資料不一致，請選擇要使用的基本資料：';
-        const localDataDisplay = `${currentName || '(空)'} - ${currentType || '(空)'}`;
-        const csvDataDisplay = `${csvName || '(空)'} - ${csvType || '(空)'}`;
+        const conflictMessage = `發現基本資料不一致，請選擇處理方式：\n\n本地資料：${currentName || '(空)'} - ${currentType || '(空)'}\nCSV資料：${csvName || '(空)'} - ${csvType || '(空)'}`;
         
-        const choice = await showBasicInfoChoiceDialog(
+        const choice = await showThreeChoiceDialog(
             conflictMessage,
-            localDataDisplay,
-            csvDataDisplay,
-            false // isConfirmDialog = false
+            '使用本地資料',
+            '使用CSV資料',
+            '取消匯入'
         );
         
         if (choice === 1) {
@@ -2352,42 +2350,43 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
 
                                 // Ask user how to handle existing data
+                                let importMode;
                                 if (timesheets[targetWeekKey] && timesheets[targetWeekKey].length > 0) {
-                                    const choice = await showThreeChoiceDialog(
+                                    importMode = await showThreeChoiceDialog(
                                         `工時表 ${targetWeekKey} 已存在。請選擇匯入方式：`,
                                         '覆蓋現有記錄',
                                         '附加到現有記錄',
                                         '取消匯入'
                                     );
+                                } else {
+                                    importMode = 3; // New week
+                                }
 
-                                    if (importMode === 1) { // Overwrite
-                            timesheets[targetWeekKey] = finalEntries;
-                            saveAllTimesheets(timesheets);
-                            showSuccessMessage(`成功覆蓋 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
-                        } else if (importMode === 2) { // Merge
-                            const existingEntries = getWeekEntries(targetWeekKey);
-                            timesheets[targetWeekKey] = [...existingEntries, ...finalEntries];
-                            saveAllTimesheets(timesheets);
-                            showSuccessMessage(`成功合併 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
-                        } else if (importMode === 3) { // New week (or user chose to create new)
-                            timesheets[targetWeekKey] = finalEntries;
-                            saveAllTimesheets(timesheets);
-                            showSuccessMessage(`成功匯入 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
-                        }
+                                if (importMode === 1) { // Overwrite
+                                    timesheets[targetWeekKey] = updatedData;
+                                    saveAllTimesheets(timesheets);
+                                    showSuccessMessage(`成功覆蓋 ${updatedData.length} 筆記錄到 ${targetWeekKey}`);
+                                } else if (importMode === 2) { // Merge
+                                    const existingEntries = getWeekEntries(targetWeekKey);
+                                    timesheets[targetWeekKey] = [...existingEntries, ...updatedData];
+                                    saveAllTimesheets(timesheets);
+                                    showSuccessMessage(`成功合併 ${updatedData.length} 筆記錄到 ${targetWeekKey}`);
+                                } else if (importMode === 3) { // New week
+                                    timesheets[targetWeekKey] = updatedData;
+                                    saveAllTimesheets(timesheets);
+                                    showSuccessMessage(`成功匯入 ${updatedData.length} 筆記錄到 ${targetWeekKey}`);
+                                }
 
-                        // Re-render cards if import was successful (not cancelled)
-                        if (importMode) {
-                            if (typeof renderTimesheetCards === 'function') {
-                                renderTimesheetCards();
-                            }
-                        }
+                                // Re-render cards if import was successful (not cancelled)
+                                if (importMode && importMode !== 0) {
+                                    if (typeof renderTimesheetCards === 'function') {
+                                        renderTimesheetCards();
+                                    }
+                                }
 
-                        // Reset file input
-                        event.target.value = '';
-                        window.importTargetWeek = null;
-
-                                saveAllTimesheets(timesheets);
-                                renderTimesheetCards();
+                                // Reset file input
+                                event.target.value = '';
+                                window.importTargetWeek = null;
                             }
                         } catch (err) {
                             console.error('Error processing CSV file:', err);
