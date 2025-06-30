@@ -1280,13 +1280,13 @@ function hideWeekSelectionModal() {
 }
 
 // 確認週次選擇
-function confirmWeekSelection() {
+async function confirmWeekSelection() {
     const modal = document.getElementById('week-selection-modal');
     const isImportMode = modal.getAttribute('data-mode') === 'import';
     
     const selectedOption = document.querySelector('input[name="weekOption"]:checked');
     if (!selectedOption) {
-        alert(isImportMode ? '請選擇匯入目標週次' : '請選擇要建立的週次');
+        await showAlert(isImportMode ? '請選擇匯入目標週次' : '請選擇要建立的週次');
         return;
     }
     
@@ -1298,13 +1298,13 @@ function confirmWeekSelection() {
     } else if (selectedOption.value === 'custom') {
         weekKey = document.getElementById('custom-week-field').value.trim().toUpperCase();
         if (!weekKey) {
-            alert('請輸入週次');
+            await showAlert('請輸入週次');
             return;
         }
         
         const weekKeyPattern = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
         if (!weekKeyPattern.test(weekKey)) {
-            alert('無效的週次格式。請使用 YYYY-WNN 格式。');
+            await showAlert('無效的週次格式。請使用 YYYY-WNN 格式。');
             return;
         }
     }
@@ -2604,9 +2604,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Clear button found:', !!clearBtn);
         if (clearBtn) {
             console.log('Adding event listener to clear button');
-            clearBtn.addEventListener('click', function() {
+            clearBtn.addEventListener('click', async function() {
                 console.log('Clear button clicked!');
-                if (confirm('確定要清空所有資料嗎？此操作無法還原。')) {
+                if (await showConfirm('確定要清空所有資料嗎？此操作無法還原。')) {
                     localStorage.clear();
                     renderTimesheetCards();
                     showSuccessMessage('資料已清空');
@@ -2786,7 +2786,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         } catch (err) {
                             console.error('Error processing CSV file:', err);
-                            alert('無法解析CSV檔案，請檢查檔案格式。');
+                            await showAlert('無法解析CSV檔案，請檢查檔案格式。');
                         }
                     };
                     reader.readAsText(file);
