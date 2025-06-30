@@ -1532,7 +1532,10 @@
             
             // Previous export merge events
             const previousExportInput = document.getElementById('previous-export-file');
-            document.getElementById('btn-select-previous').addEventListener('click', () => previousExportInput.click());
+            document.getElementById('btn-select-previous').addEventListener('click', () => {
+                previousExportInput.value = ''; // Clear value to ensure change event fires
+                previousExportInput.click();
+            });
             document.getElementById('btn-clear-previous').addEventListener('click', clearPreviousFile);
             previousExportInput.addEventListener('change', handlePreviousFileSelection);
             
