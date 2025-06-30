@@ -1799,35 +1799,17 @@
                     
                     previousExportData = parsedData;
                     
-                    // Check file-level statistics with current passed files
-                    const fileInfo = checkDuplicateFiles();
-                    
                     let displayText = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
                     
                     document.getElementById('previous-file-name').textContent = displayText;
                     document.getElementById('btn-clear-previous').style.display = 'inline-block';
                     
-                    // Show file-level merge information with duplicate check
-                    let message = `載入之前的匯出檔案完成！\n\n` +
-                        `📊 重複檢查結果：\n` +
-                        `• 之前匯出檔案：${fileInfo.totalPreviousRecords} 筆記錄\n`;
-                    
-                    if (fileInfo.duplicateFileCount > 0) {
-                        message += `• 可合併檔案：${fileInfo.passedFileCount} 個，共 ${fileInfo.totalCurrentRecords} 筆記錄\n` +
-                            `• ⚠️ 因重複而排除：${fileInfo.duplicateFileCount} 個檔案\n`;
-                        
-                        message += `\n❌ 排除的檔案：\n`;
-                        fileInfo.invalidFiles.forEach(file => {
-                            message += `  • ${file.fileName}（${file.duplicateCount} 筆重複）\n`;
-                        });
-                        
-                        message += `\n📁 合併原則：檔案級別排除\n` +
-                            `• 有任何重複記錄的檔案：整個檔案排除\n` +
-                            `• 無重複記錄的檔案：完整包含`;
-                    } else {
-                        message += `• 可合併檔案：${fileInfo.passedFileCount} 個，共 ${fileInfo.totalCurrentRecords} 筆記錄\n` +
-                            `• ✅ 無重複檔案：所有通過驗證的檔案都可合併`;
-                    }
+                    // Simple confirmation message without duplicate checking
+                    const message = `載入之前的匯出檔案完成！\n\n` +
+                        `📁 檔案名稱：${file.name}\n` +
+                        `📊 記錄數量：${parsedData.length} 筆\n\n` +
+                        `✅ 檔案已成功載入，將在匯出時作為合併基準。\n` +
+                        `重複檢查將在按「匯出」按鈕時進行。`;
                     
                     alert(message);
                     
