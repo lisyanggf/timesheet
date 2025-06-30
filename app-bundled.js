@@ -204,19 +204,28 @@ function shiftDateByOffset(dateStr, offsetDays) {
 
 // 從CSV資料中提取基本資料
 function extractBasicInfoFromCSV(csvData) {
-    if (csvData.length === 0) return null;
+    if (!csvData || csvData.length === 0) return null;
     
     const firstEntry = csvData[0];
+    if (!firstEntry) return null;
     
+    // Extract employee name and type from CSV data with better fallbacks
+    const employeeName = firstEntry.Name || firstEntry.name || firstEntry['Employee Name'] || '';
+    const employeeType = firstEntry.InternalOrOutsource || firstEntry.employeeType || firstEntry['Employee Type'] || '';
+    
+    // Only return if we have at least a name
+    if (!employeeName && !employeeType) {
+        return null;
+    }
     
     return {
-        employeeName: employeeName.trim(),
-        employeeType: employeeType.trim()
+        employeeName: String(employeeName || '').trim(),
+        employeeType: String(employeeType || '').trim()
     };
 }
 
 // 顯示基本資料選擇對話框
-function showBasicInfoChoiceDialog(message, localData, csvData) {
+function showBasicInfoChoiceDialog(message, option1Text, option2Text, isConfirmDialog = false) {
     return new Promise((resolve) => {
         // 創建對話框元素
         const overlay = document.createElement('div');
@@ -243,76 +252,147 @@ function showBasicInfoChoiceDialog(message, localData, csvData) {
             width: 90%;
         `;
 
+        let buttonsHtml;
+        if (isConfirmDialog) {
+            // 一致時的確認對話框
+            buttonsHtml = `
+                <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                    <button id="choice-confirm" style="
+                        padding: 12px 24px;
+                        border: 2px solid #28a745;
+                        background: #28a745;
+                        color: white;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-weight: bold;
+                    " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+                        ${option1Text}
+                    </button>
+                    
+                    <button id="choice-cancel" style="
+                        padding: 12px 24px;
+                        border: 2px solid #6c757d;
+                        background: #f8f9fa;
+                        color: #6c757d;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.background='#e2e6ea'" onmouseout="this.style.background='#f8f9fa'">
+                        ${option2Text}
+                    </button>
+                </div>
+            `;
+        } else {
+            // 不一致時的選擇對話框 - 現在有三個選項
+            buttonsHtml = `
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+                    <button id="choice-local" style="
+                        padding: 15px;
+                        border: 2px solid #007bff;
+                        background: #f8f9fa;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        text-align: left;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.background='#e7f3ff'" onmouseout="this.style.background='#f8f9fa'">
+                        <strong>使用本地資料</strong><br>
+                        <span style="color: #666; font-size: 14px;">${option1Text}</span>
+                    </button>
+                    
+                    <button id="choice-csv" style="
+                        padding: 15px;
+                        border: 2px solid #28a745;
+                        background: #f8f9fa;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        text-align: left;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.background='#e8f5e8'" onmouseout="this.style.background='#f8f9fa'">
+                        <strong>使用CSV資料</strong><br>
+                        <span style="color: #666; font-size: 14px;">${option2Text}</span>
+                    </button>
+
+                    <button id="choice-cancel-import" style="
+                        padding: 12px 24px;
+                        border: 2px solid #6c757d;
+                        background: #f8f9fa;
+                        color: #6c757d;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        text-align: center;
+                    " onmouseover="this.style.background='#e2e6ea'" onmouseout="this.style.background='#f8f9fa'">
+                        取消
+                    </button>
+                </div>
+            `;
+        }
+
         dialog.innerHTML = `
-            <h3 style="margin-top: 0; color: #333;">基本資料選擇</h3>
+            <h3 style="margin-top: 0; color: #333;">基本資料${isConfirmDialog ? '確認' : '選擇'}</h3>
             <p style="margin-bottom: 20px; line-height: 1.5;">${message}</p>
-            
-            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
-                <button id="choice-local" style="
-                    padding: 15px;
-                    border: 2px solid #007bff;
-                    background: #f8f9fa;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    text-align: left;
-                    transition: all 0.2s;
-                " onmouseover="this.style.background='#e7f3ff'" onmouseout="this.style.background='#f8f9fa'">
-                    <strong>使用本地資料</strong><br>
-                    <span style="color: #666; font-size: 14px;">${localData}</span>
-                </button>
-                
-                <button id="choice-csv" style="
-                    padding: 15px;
-                    border: 2px solid #28a745;
-                    background: #f8f9fa;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    text-align: left;
-                    transition: all 0.2s;
-                " onmouseover="this.style.background='#e8f5e8'" onmouseout="this.style.background='#f8f9fa'">
-                    <strong>使用CSV資料</strong><br>
-                    <span style="color: #666; font-size: 14px;">${csvData}</span>
-                </button>
-            </div>
-            
-            <div style="text-align: right;">
-                <button id="choice-cancel" style="
-                    padding: 8px 16px;
-                    border: 1px solid #6c757d;
-                    background: #f8f9fa;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    margin-left: 10px;
-                ">取消匯入</button>
-            </div>
+            ${buttonsHtml}
         `;
 
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
         // 綁定事件
-        document.getElementById('choice-local').onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(1);
-        };
-
-        document.getElementById('choice-csv').onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(2);
-        };
-
-        document.getElementById('choice-cancel').onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(3);
-        };
-
-        // 點擊背景關閉
-        overlay.onclick = (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
-                resolve(3);
+        if (isConfirmDialog) {
+            // 確認對話框事件
+            const confirmBtn = document.getElementById('choice-confirm');
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve(1);
+                };
             }
-        };
+        } else {
+            // 選擇對話框事件
+            const localBtn = document.getElementById('choice-local');
+            const csvBtn = document.getElementById('choice-csv');
+            const cancelBtnImport = document.getElementById('choice-cancel-import');
+            
+            if (localBtn) {
+                localBtn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve(1);
+                };
+            }
+
+            if (csvBtn) {
+                csvBtn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve(2);
+                };
+            }
+
+            if (cancelBtnImport) {
+                cancelBtnImport.onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve(3); // 3 for cancel
+                };
+            }
+        }
+
+        const cancelBtn = document.getElementById('choice-cancel');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                document.body.removeChild(overlay);
+                resolve(2); // Only exists in confirm dialog, so always return 2
+            };
+        }
+
+        // 點擊背景關閉 (只在確認對話框時允許)
+        if (isConfirmDialog) {
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    resolve(2); // Cancel
+                }
+            };
+        }
     });
 }
 
@@ -371,7 +451,8 @@ async function handleBasicInfoImport(csvBasicInfo) {
         const choice = await showBasicInfoChoiceDialog(
             conflictMessage,
             localDataDisplay,
-            csvDataDisplay
+            csvDataDisplay,
+            false // isConfirmDialog = false
         );
         
         if (choice === 1) {
@@ -387,13 +468,37 @@ async function handleBasicInfoImport(csvBasicInfo) {
             saveGlobalBasicInfo(newBasicInfo);
             showSuccessMessage(`已更新為CSV基本資料：${csvName || '(無姓名)'} - ${csvType || '(無類型)'}`);
             return true;
-        } else {
+        } else if (choice === 3) {
             // 取消匯入
+            showSuccessMessage('已取消匯入操作。');
             return false;
+        }
+        
+        // 不應該到達這裡，但作為後備方案
+        return false;
+    }
+    
+    // Case 3: Data is consistent - show confirmation dialog
+    if (csvName === currentName && csvType === currentType) {
+        const confirmMessage = '基本資料一致，是否繼續匯入？';
+        const dataDisplay = `${currentName || '(空)'} - ${currentType || '(空)'}`;
+        
+        const choice = await showBasicInfoChoiceDialog(
+            confirmMessage,
+            `繼續匯入`,
+            `取消匯入`,
+            true // isConfirmDialog = true
+        );
+        
+        if (choice === 1) {
+            showSuccessMessage(`基本資料一致，繼續匯入：${currentName || '(無姓名)'} - ${currentType || '(無類型)'}`);
+            return true;
+        } else {
+            return false; // User cancelled
         }
     }
     
-    // Case 3: No conflicts or CSV has empty fields - fill in missing data
+    // Case 4: No conflicts or CSV has empty fields - fill in missing data
     if (csvName && !currentName) {
         currentBasicInfo.employeeName = csvName;
         saveGlobalBasicInfo(currentBasicInfo);
@@ -1877,7 +1982,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.0.2 (2025-06-30T23:35:00Z)');
+console.log('App.js initialized and running - Version 3.1.1 (2025-07-01T00:15:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -1922,6 +2027,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 驗證是否可以變更 Zone
                     if (!validateZoneChange(this.value)) {
                         return; // 阻止變更
+                    }
+                    
+                    // 清空 PM 欄位，因為不同 Zone 的 Project 可能有不同的 PM
+                    const pmField = document.getElementById('pm');
+                    if (pmField) {
+                        pmField.value = '';
+                        console.log('PM field cleared due to zone change');
                     }
                     
                     // 触发项目和产品选单更新
@@ -2248,19 +2360,31 @@ document.addEventListener('DOMContentLoaded', function() {
                                         '取消匯入'
                                     );
 
-                                    if (choice === 1) {
-                                        timesheets[targetWeekKey] = updatedData;
-                                        showSuccessMessage(`已成功覆蓋 ${targetWeekKey} 的工時記錄`);
-                                    } else if (choice === 2) {
-                                        timesheets[targetWeekKey] = timesheets[targetWeekKey].concat(updatedData);
-                                        showSuccessMessage(`已成功附加到 ${targetWeekKey} 的工時記錄`);
-                                    } else {
-                                        return; // Cancel import
-                                    }
-                                } else {
-                                    timesheets[targetWeekKey] = updatedData;
-                                    showSuccessMessage(`已成功匯入到 ${targetWeekKey}`);
-                                }
+                                    if (importMode === 1) { // Overwrite
+                            timesheets[targetWeekKey] = finalEntries;
+                            saveAllTimesheets(timesheets);
+                            showSuccessMessage(`成功覆蓋 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
+                        } else if (importMode === 2) { // Merge
+                            const existingEntries = getWeekEntries(targetWeekKey);
+                            timesheets[targetWeekKey] = [...existingEntries, ...finalEntries];
+                            saveAllTimesheets(timesheets);
+                            showSuccessMessage(`成功合併 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
+                        } else if (importMode === 3) { // New week (or user chose to create new)
+                            timesheets[targetWeekKey] = finalEntries;
+                            saveAllTimesheets(timesheets);
+                            showSuccessMessage(`成功匯入 ${finalEntries.length} 筆記錄到 ${targetWeekKey}`);
+                        }
+
+                        // Re-render cards if import was successful (not cancelled)
+                        if (importMode) {
+                            if (typeof renderTimesheetCards === 'function') {
+                                renderTimesheetCards();
+                            }
+                        }
+
+                        // Reset file input
+                        event.target.value = '';
+                        window.importTargetWeek = null;
 
                                 saveAllTimesheets(timesheets);
                                 renderTimesheetCards();

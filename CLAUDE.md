@@ -25,6 +25,20 @@ This is a Chinese timesheet management web application built with vanilla HTML, 
 - **Global Basic Info**: Employee name and type (Internal/Outsource) shared across all weeks
 - **CSV Reference Data**: Project codes, product codes, activity types
 
+### Zone and Project Relationship
+- **Zone Selection Impact**: When zone is changed, the PM field is automatically cleared
+- **PM Lookup Logic**: PM lookup requires both Zone and Project to be considered together, as there can be projects with the same name across different zones
+- **Cascading Updates**: Zone changes trigger updates to Project and Product Module dropdowns, and clear the PM field
+
+### Basic Info Import Handling
+- **Data Consistency Check**: When importing CSV files, the system compares CSV basic info with existing local data
+- **Consistent Data**: If data matches, shows confirmation dialog with "Continue Import" and "Cancel Import" options
+- **Inconsistent Data**: If data conflicts, shows selection dialog with only two options:
+  - "Use Local Data" - Keep current system data  
+  - "Use CSV Data" - Replace with imported data
+  - No cancel option - user must choose one of the two data sources
+- **User Experience**: Clean interface with only relevant buttons visible
+
 ## Development Commands
 
 Since this is a frontend-only application, there are no build commands. The application runs directly in a web browser by opening `index.html`.
@@ -81,6 +95,46 @@ const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
 
 ### Date Calculations
 The application uses a Sunday-to-Saturday week system. Week numbers are calculated from the first Sunday of the year.
+
+### Zone and PM Field Management
+When implementing zone/project/PM relationships:
+```javascript
+// Zone change automatically clears PM field
+zoneSelect.addEventListener('change', function() {
+    const pmField = document.getElementById('pm');
+    if (pmField) {
+        pmField.value = ''; // Clear PM when zone changes
+    }
+});
+```
+
+**Important**: PM lookup must consider both Zone AND Project because projects with the same name can exist across different zones.
+
+### Basic Info Import Dialog Patterns
+When implementing basic info conflict handling:
+```javascript
+// For consistent data - confirmation dialog
+const choice = await showBasicInfoChoiceDialog(
+    'Basic data is consistent, continue import?',
+    'Continue Import',
+    'Cancel Import',
+    true // isConfirmDialog = true
+);
+
+// For inconsistent data - selection dialog  
+const choice = await showBasicInfoChoiceDialog(
+    'Data conflict detected, choose which to use:',
+    localDataDisplay,
+    csvDataDisplay,
+    false // isConfirmDialog = false
+);
+```
+
+**Return Values**: 
+- `1` = First option selected (Continue/Use Local)
+- `2` = Second option selected (Cancel/Use CSV)
+
+**Note**: For inconsistent data dialogs, only options 1 and 2 are available (no cancel option).
 
 ## Error Handling
 

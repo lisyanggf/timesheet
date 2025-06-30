@@ -211,6 +211,15 @@
             background-color: #c82333;
         }
         
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        
         .btn-secondary {
             background-color: #6c757d;
             color: white;
@@ -274,7 +283,20 @@
                 <div class="action-buttons">
                     <button class="btn btn-primary" id="btn-select-files">Select Files</button>
                     <button class="btn btn-success" id="btn-validate-all">Validate All</button>
+                    <button class="btn btn-warning" id="btn-export-all-passed" style="display: none;">匯出所有通過檔案</button>
                     <button class="btn btn-danger" id="btn-clear-all">Clear All</button>
+                </div>
+                
+                <!-- Previous export merge section -->
+                <div class="merge-previous-section" id="merge-previous-section" style="display: none; margin-top: 20px; padding: 15px; border: 2px dashed #ffc107; border-radius: 10px; background-color: #fff3cd;">
+                    <h4 style="margin: 0 0 10px 0; color: #856404;">📥 合併之前的 TPM 匯出檔案</h4>
+                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #856404;">如果您有之前匯出的 TPM 檔案，可以選擇合併到這次的匯出中</p>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="previous-export-file" accept=".csv" style="display: none;">
+                        <button class="btn btn-secondary" id="btn-select-previous">選擇之前的匯出檔案</button>
+                        <span id="previous-file-name" style="color: #28a745; font-weight: bold;"></span>
+                        <button class="btn btn-sm btn-danger" id="btn-clear-previous" style="display: none; padding: 5px 10px; font-size: 12px;">移除</button>
+                    </div>
                 </div>
                 
                 <div class="file-list" id="file-list">
@@ -875,6 +897,17 @@
             document.getElementById('pass-files').textContent = passFiles;
             document.getElementById('fail-files').textContent = failFiles;
             document.getElementById('pending-files').textContent = pendingFiles;
+            
+            // Show/hide export all passed files button and merge section based on whether there are passed files
+            const exportAllButton = document.getElementById('btn-export-all-passed');
+            const mergePreviousSection = document.getElementById('merge-previous-section');
+            if (passFiles > 0) {
+                exportAllButton.style.display = 'inline-block';
+                mergePreviousSection.style.display = 'block';
+            } else {
+                exportAllButton.style.display = 'none';
+                mergePreviousSection.style.display = 'none';
+            }
         }
         
         function updateFileList() {
@@ -1215,6 +1248,228 @@
             }
         }
         
+        function exportAllPassedFiles() {
+            // Get all files and categorize them
+            const passedFiles = [];
+            const failedFiles = [];
+            
+            validationFiles.forEach((fileInfo, fileName) => {
+                if (fileInfo.results) {
+                    if (fileInfo.results.overallResult === 'PASS') {
+                        passedFiles.push({
+                            fileName: fileName,
+                            data: fileInfo.data
+                        });
+                    } else if (fileInfo.results.overallResult === 'FAIL') {
+                        failedFiles.push(fileName);
+                    }
+                }
+            });
+            
+            if (passedFiles.length === 0) {
+                alert('沒有通過驗證的檔案可以匯出');
+                return;
+            }
+            
+            // Create detailed confirmation message
+            let confirmMessage = `準備匯出驗證結果：\n\n`;
+            confirmMessage += `✅ 通過驗證的檔案 (${passedFiles.length} 個)：\n`;
+            passedFiles.forEach(file => {
+                confirmMessage += `   • ${file.fileName}\n`;
+            });
+            
+            if (failedFiles.length > 0) {
+                confirmMessage += `\n❌ 未通過驗證的檔案 (${failedFiles.length} 個)：\n`;
+                failedFiles.forEach(fileName => {
+                    confirmMessage += `   • ${fileName}\n`;
+                });
+                confirmMessage += `\n注意：未通過驗證的檔案將不會包含在匯出中。\n`;
+            }
+            
+            // Check if there's previous export data to merge
+            if (previousExportData && previousExportData.length > 0) {
+                confirmMessage += `\n📥 將合併之前的匯出資料：${previousExportData.length} 筆記錄\n`;
+            }
+            
+            const totalNewRecords = passedFiles.reduce((sum, file) => sum + (file.data ? file.data.length : 0), 0);
+            const totalRecords = totalNewRecords + (previousExportData ? previousExportData.length : 0);
+            
+            confirmMessage += `\n總記錄數：${totalRecords} 筆`;
+            confirmMessage += `\n確定要匯出合併的 CSV 檔案嗎？`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                // Combine all data: previous export + current passed files
+                const allData = [];
+                
+                // First, add previous export data if available
+                if (previousExportData && previousExportData.length > 0) {
+                    previousExportData.forEach(entry => {
+                        // Apply date format normalization to ensure consistency
+                        const normalizedEntry = { ...entry };
+                        
+                        if (normalizedEntry.Date) {
+                            normalizedEntry.Date = normalizeDateFormat(normalizedEntry.Date);
+                        }
+                        if (normalizedEntry['Start Date']) {
+                            normalizedEntry['Start Date'] = normalizeDateFormat(normalizedEntry['Start Date']);
+                        }
+                        if (normalizedEntry['End Date']) {
+                            normalizedEntry['End Date'] = normalizeDateFormat(normalizedEntry['End Date']);
+                        }
+                        
+                        allData.push(normalizedEntry);
+                    });
+                }
+                
+                // Then, add current passed file data
+                passedFiles.forEach(file => {
+                    if (file.data && Array.isArray(file.data)) {
+                        file.data.forEach(entry => {
+                            // Apply date format normalization to ensure consistency
+                            const normalizedEntry = { ...entry };
+                            
+                            if (normalizedEntry.Date) {
+                                normalizedEntry.Date = normalizeDateFormat(normalizedEntry.Date);
+                            }
+                            if (normalizedEntry['Start Date']) {
+                                normalizedEntry['Start Date'] = normalizeDateFormat(normalizedEntry['Start Date']);
+                            }
+                            if (normalizedEntry['End Date']) {
+                                normalizedEntry['End Date'] = normalizeDateFormat(normalizedEntry['End Date']);
+                            }
+                            
+                            allData.push(normalizedEntry);
+                        });
+                    }
+                });
+                
+                if (allData.length === 0) {
+                    alert('合併的檔案中沒有有效的資料');
+                    return;
+                }
+                
+                // Generate CSV headers
+                const headers = [
+                    'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
+                    'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
+                    'Comments', 'PM', 'InternalOrOutsource'
+                ];
+                
+                // Generate CSV rows
+                const csvRows = [headers];
+                allData.forEach(entry => {
+                    csvRows.push([
+                        entry.Name || '',
+                        entry.Zone || '',
+                        entry.Project || '',
+                        entry['Product Module'] || '',
+                        entry['Activity Type'] || '',
+                        entry.Task || '',
+                        entry['Regular Hours'] || '',
+                        entry['OT Hours'] || '',
+                        entry.TTL_Hours || '',
+                        entry.Date || '',
+                        entry['Start Date'] || '',
+                        entry['End Date'] || '',
+                        entry.Comments || '',
+                        entry.PM || '',
+                        entry.InternalOrOutsource || ''
+                    ]);
+                });
+                
+                // Generate CSV content with proper escaping
+                const csvContent = csvRows.map(row =>
+                    row.map(field => {
+                        const fieldStr = String(field);
+                        if (fieldStr.includes(',') || fieldStr.includes('\n') || fieldStr.includes('"')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',')
+                ).join('\n');
+                
+                // Create download with timestamp
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `TPM_Validated_Combined_${timestamp}.csv`;
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Create detailed success message
+                let successMessage = `🎉 匯出成功！\n\n`;
+                successMessage += `📁 檔案名稱：${filename}\n`;
+                successMessage += `📊 總記錄數：${allData.length} 筆\n\n`;
+                successMessage += `📋 匯出內容：\n`;
+                
+                if (previousExportData && previousExportData.length > 0) {
+                    successMessage += `  • 之前的匯出資料：${previousExportData.length} 筆\n`;
+                }
+                
+                const newRecords = allData.length - (previousExportData ? previousExportData.length : 0);
+                successMessage += `  • 本次通過驗證：${newRecords} 筆 (來自 ${passedFiles.length} 個檔案)\n`;
+                
+                if (failedFiles.length > 0) {
+                    successMessage += `\n⚠️ 未包含 ${failedFiles.length} 個未通過驗證的檔案`;
+                }
+                
+                alert(successMessage);
+                
+            } catch (error) {
+                console.error('合併匯出失敗:', error);
+                alert('合併匯出失敗，請檢查控制台錯誤訊息');
+            }
+        }
+        
+        // ==================== PREVIOUS EXPORT MERGE FUNCTIONS ====================
+        
+        let previousExportData = null;
+        
+        function handlePreviousFileSelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const parsedData = parseCSVContent(text);
+                    
+                    if (parsedData.length === 0) {
+                        alert('選擇的檔案格式不正確或為空');
+                        return;
+                    }
+                    
+                    previousExportData = parsedData;
+                    document.getElementById('previous-file-name').textContent = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
+                    document.getElementById('btn-clear-previous').style.display = 'inline-block';
+                    
+                } catch (error) {
+                    alert('讀取之前的匯出檔案時發生錯誤，請確認檔案格式正確');
+                    console.error('解析之前匯出檔案錯誤:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function clearPreviousFile() {
+            previousExportData = null;
+            document.getElementById('previous-file-name').textContent = '';
+            document.getElementById('btn-clear-previous').style.display = 'none';
+            document.getElementById('previous-export-file').value = '';
+        }
+        
         // ==================== INITIALIZATION ====================
         
         document.addEventListener('DOMContentLoaded', async function() {
@@ -1266,9 +1521,16 @@
             document.getElementById('btn-select-files').addEventListener('click', () => fileInput.click());
             document.getElementById('btn-validate-all').addEventListener('click', validateAllFiles);
             document.getElementById('btn-clear-all').addEventListener('click', clearAllFiles);
+            document.getElementById('btn-export-all-passed').addEventListener('click', exportAllPassedFiles);
             document.getElementById('btn-export-corrected').addEventListener('click', exportCorrectedFile);
             document.getElementById('btn-revalidate-file').addEventListener('click', revalidateCurrentFile);
             document.getElementById('btn-remove-file').addEventListener('click', removeCurrentFile);
+            
+            // Previous export merge events
+            const previousExportInput = document.getElementById('previous-export-file');
+            document.getElementById('btn-select-previous').addEventListener('click', () => previousExportInput.click());
+            document.getElementById('btn-clear-previous').addEventListener('click', clearPreviousFile);
+            previousExportInput.addEventListener('change', handlePreviousFileSelection);
             
             console.log('✅ TPM 驗證儀表板初始化完成');
         });
