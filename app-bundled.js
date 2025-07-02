@@ -1577,29 +1577,16 @@ function normalizeWorkHours(entries) {
 }
 
 // 下載CSV檔案
-function downloadCSVFile(csvContent, filename) {
-    try {
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        
-        // 小延遲避免連續下載時瀏覽器阻擋
-        setTimeout(() => {
-            link.click();
-            // 延遲清理，給瀏覽器足夠時間處理下載
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
-        }, 50);
-    } catch (err) {
-        console.error('Download error:', err);
-    }
+function downloadCsv(filename, csv) {
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // 匯入工時表
@@ -2403,7 +2390,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.3.0 (2025-07-02T00:00:00Z)');
+console.log('App.js initialized and running - Version 3.3.1 (2025-07-02T00:00:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
