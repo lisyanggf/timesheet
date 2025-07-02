@@ -8,7 +8,7 @@ This document provides guidance for AI assistants (Claude Code, Gemini, etc.) wh
 ## Quick Reference
 
 ### Current Version
-- **Version**: 3.2.6 (2025-07-01)
+- **Version**: 3.3.0 (2025-07-02)
 - **Architecture**: Frontend-only, bundled JavaScript
 - **Data Storage**: localStorage
 - **Deployment**: GitHub Pages compatible
@@ -210,7 +210,7 @@ When user requests "進小版" or "進個小版":
 
 ### Current Version Pattern
 ```javascript
-console.log('App.js initialized and running - Version 3.2.6 (2025-07-01T00:15:00Z)');
+console.log('App.js initialized and running - Version 3.3.0 (2025-07-02T00:00:00Z)');
 ```
 
 ## Testing Checklist
@@ -263,4 +263,4 @@ Users often request:
 
 ---
 
-*This guide is maintained for timesheet application v3.2.6. Update this document when significant architectural changes are made.*
+*This guide is maintained for timesheet application v3.3.0. Update this document when significant architectural changes are made.*
