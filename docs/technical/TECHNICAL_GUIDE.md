@@ -323,6 +323,182 @@ async function validateAllFiles() {
 }
 ```
 
+### 檔案合併功能
+
+TPM驗證工具新增了檔案合併功能，允許將兩個已匯出的TPM檔案合併為一個：
+
+#### 核心實作邏輯
+
+```javascript
+// 檔案載入和解析
+function handleCombineFileSelection(event, fileType) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const parsedData = parseCSVContent(e.target.result);
+            if (fileType === 'A') {
+                combineFileAData = parsedData;
+                combineFileAName = file.name;
+            } else {
+                combineFileBData = parsedData;
+                combineFileBName = file.name;
+            }
+            updateCombinationPreview();
+        } catch (error) {
+            handleFileLoadError(error, fileType);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// 重複記錄檢測算法
+function detectDuplicateRecords(fileAData, fileBData) {
+    const fileAKeys = new Set();
+    fileAData.forEach(entry => {
+        fileAKeys.add(generateRecordKey(entry));
+    });
+    
+    const duplicates = [];
+    const uniqueFromB = [];
+    
+    fileBData.forEach(entry => {
+        const key = generateRecordKey(entry);
+        if (fileAKeys.has(key)) {
+            duplicates.push(entry);
+        } else {
+            uniqueFromB.push(entry);
+        }
+    });
+    
+    return { duplicates, uniqueFromB };
+}
+
+// 合併策略實作
+function performFileCombination(handlingMode) {
+    const { duplicates, uniqueFromB } = detectDuplicateRecords(
+        combineFileAData, combineFileBData
+    );
+    
+    let finalData = [...combineFileAData]; // 總是包含檔案A
+    
+    switch (handlingMode) {
+        case 'skip':
+            // 只加入檔案B的唯一記錄
+            finalData.push(...uniqueFromB);
+            break;
+            
+        case 'include':
+            // 加入所有檔案B記錄，標記重複
+            combineFileBData.forEach(entry => {
+                const isDuplicate = duplicates.some(dup => 
+                    generateRecordKey(dup) === generateRecordKey(entry)
+                );
+                if (isDuplicate) {
+                    entry.Comments = (entry.Comments || '') + ' [重複記錄-來自檔案B]';
+                }
+                finalData.push(entry);
+            });
+            break;
+            
+        case 'manual':
+            // 顯示確認對話框讓用戶選擇
+            showDuplicateReviewModal(duplicates, uniqueFromB);
+            return;
+    }
+    
+    exportCombinedFile(finalData);
+}
+```
+
+#### 資料完整性保障
+
+```javascript
+// 記錄唯一性鍵值生成
+function generateRecordKey(entry) {
+    return [
+        entry.Name || '',
+        entry.Zone || '',
+        entry.Project || '',
+        entry.Task || '',
+        entry.Date || '',
+        entry['Regular Hours'] || '',
+        entry['OT Hours'] || ''
+    ].join('_');
+}
+
+// CSV 輸出格式化
+function exportCombinedFile(data) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `TPM_Combined_${timestamp}.csv`;
+    
+    const headers = [
+        'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
+        'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
+        'Comments', 'PM', 'InternalOrOutsource'
+    ];
+    
+    let csvContent = headers.join(',') + '\n';
+    
+    data.forEach(entry => {
+        const row = headers.map(header => {
+            let value = entry[header] || '';
+            // CSV 轉義處理
+            if (typeof value === 'string' && 
+                (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                value = '"' + value.replace(/"/g, '""') + '"';
+            }
+            return value;
+        });
+        csvContent += row.join(',') + '\n';
+    });
+    
+    downloadCSVFile(csvContent, filename);
+}
+```
+
+#### UI 狀態管理
+
+```javascript
+// 即時預覽更新
+function updateCombinationPreview() {
+    if (!combineFileAData || !combineFileBData) {
+        hidePreview();
+        return;
+    }
+    
+    const { duplicates } = detectDuplicateRecords(combineFileAData, combineFileBData);
+    const totalRecords = combineFileAData.length + combineFileBData.length;
+    const uniqueRecords = totalRecords - duplicates.length;
+    
+    displayPreviewStats({
+        fileACount: combineFileAData.length,
+        fileBCount: combineFileBData.length,
+        duplicateCount: duplicates.length,
+        finalCount: uniqueRecords
+    });
+    
+    enableCombineButton();
+}
+
+// 錯誤處理和用戶回饋
+function handleFileLoadError(error, fileType) {
+    console.error(`檔案 ${fileType} 載入錯誤:`, error);
+    alert(`讀取檔案 ${fileType} 時發生錯誤，請確認檔案格式正確`);
+    clearFileSelection(fileType);
+}
+```
+
+#### 功能特色
+
+- **智能重複檢測**：基於多欄位組合的精確比對
+- **三種處理模式**：靈活的重複記錄處理策略
+- **即時預覽**：合併前的詳細統計預覽
+- **資料完整性**：CSV格式完整保持和轉義處理
+- **用戶體驗**：清晰的狀態回饋和錯誤處理
+
 ## 🔄 事件處理系統
 
 ### 頁面初始化

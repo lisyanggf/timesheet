@@ -113,6 +113,18 @@ Access the independent TPM validation dashboard at `tpm-validator.html` for:
 - **Weekly Total Hours Check**: Verifies total weekly hours are within acceptable ranges
 - **Batch Processing**: Validate multiple CSV files simultaneously
 - **Detailed Reports**: Get comprehensive validation results with specific rule violations
+- **File Combination Tool**: Merge two exported TPM files with duplicate handling options
+
+#### File Combination Feature
+The TPM tool now includes a powerful file combination feature:
+- **Dual File Selection**: Load two previously exported TPM files (File A and File B)
+- **Smart Duplicate Detection**: Automatically identifies duplicate records across files
+- **Three Handling Modes**:
+  - Skip duplicates (keep File A records)
+  - Include all records (mark duplicates)
+  - Manual review for each duplicate
+- **Real-time Preview**: Shows merge statistics before processing
+- **Comprehensive Export**: Generates timestamped combined files with detailed statistics
 
 ## Troubleshooting
 

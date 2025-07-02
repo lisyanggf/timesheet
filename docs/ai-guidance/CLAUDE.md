@@ -79,6 +79,13 @@ The documentation is now organized in the `docs/` directory:
 - CSV import with automatic week grouping
 - Normalization calculations for export
 
+### TPM Validation and File Combination
+- Independent TPM validation dashboard (`tpm-validator.html`)
+- Comprehensive business rule validation (Admin/Training, 8-hour limits)
+- Advanced file combination tool for merging two exported TPM files
+- Smart duplicate detection with three handling modes (skip, include, manual)
+- Real-time merge preview with detailed statistics
+
 ### Localization
 - Interface is in Traditional Chinese
 - Date formats follow YYYY-MM-DD standard
@@ -146,6 +153,50 @@ const choice = await showThreeChoiceDialog(
 - `3` = Third option selected (Cancel Import)
 
 **Note**: For both consistent and inconsistent data dialogs, a cancel option is always available to give users full control.
+
+### TPM File Combination Implementation Patterns
+
+When working with the TPM file combination feature in `tpm-validator.html`:
+
+```javascript
+// File selection handlers
+function handleCombineFileASelection(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const parsedData = parseCSVContent(e.target.result);
+        combineFileAData = parsedData;
+        updateCombinationPreview();
+    };
+    reader.readAsText(file);
+}
+
+// Duplicate detection using existing generateRecordKey function
+function detectDuplicates(fileAData, fileBData) {
+    const fileAKeys = new Set();
+    fileAData.forEach(entry => fileAKeys.add(generateRecordKey(entry)));
+    
+    return fileBData.filter(entry => 
+        fileAKeys.has(generateRecordKey(entry))
+    );
+}
+
+// Three merge strategies
+const handleDuplicates = {
+    'skip': () => onlyUniqueFromFileB(),
+    'include': () => markDuplicatesInComments(),
+    'manual': () => showDuplicateReviewModal()
+};
+```
+
+**Key Implementation Notes**:
+- Reuse existing `parseCSVContent()` and `generateRecordKey()` functions
+- File combination operates independently of validation workflow
+- Always include File A records as base, apply strategy to File B
+- Generate timestamped filenames: `TPM_Combined_[timestamp].csv`
+- Provide comprehensive merge statistics in success messages
 
 ## Error Handling
 
