@@ -263,4 +263,4 @@ Users often request:
 
 ---
 
-*This guide is maintained for timesheet application v3.3.0. Update this document when significant architectural changes are made.*
+*This guide is maintained for timesheet application v3.3.1. Update this document when significant architectural changes are made.*
