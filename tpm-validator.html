@@ -388,6 +388,43 @@
                     </div>
                 </div>
                 
+                <!-- File Combination Tool section -->
+                <div class="file-combination-section" id="file-combination-section" style="margin-top: 20px; padding: 15px; border: 2px dashed #17a2b8; border-radius: 10px; background-color: #d1ecf1;">
+                    <h4 style="margin: 0 0 10px 0; color: #0c5460;">🔗 檔案合併工具</h4>
+                    <p style="margin: 0 0 15px 0; font-size: 14px; color: #0c5460;">將兩個已匯出的 TPM 檔案合併為一個檔案</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div style="padding: 10px; border: 1px solid #bee5eb; border-radius: 5px; background-color: #f8f9fa;">
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #0c5460;">檔案 A (第一個檔案):</label>
+                            <input type="file" id="combine-file-a" accept=".csv" style="display: none;">
+                            <button class="btn btn-sm btn-info" id="btn-select-file-a" style="margin-bottom: 5px;">選擇檔案 A</button>
+                            <div id="file-a-info" style="font-size: 12px; color: #28a745; font-weight: bold;"></div>
+                        </div>
+                        
+                        <div style="padding: 10px; border: 1px solid #bee5eb; border-radius: 5px; background-color: #f8f9fa;">
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #0c5460;">檔案 B (第二個檔案):</label>
+                            <input type="file" id="combine-file-b" accept=".csv" style="display: none;">
+                            <button class="btn btn-sm btn-info" id="btn-select-file-b" style="margin-bottom: 5px;">選擇檔案 B</button>
+                            <div id="file-b-info" style="font-size: 12px; color: #28a745; font-weight: bold;"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="combination-preview" style="display: none; padding: 10px; border: 1px solid #ffc107; border-radius: 5px; background-color: #fff3cd; margin-bottom: 10px;">
+                        <h5 style="margin: 0 0 10px 0; color: #856404;">📋 合併預覽</h5>
+                        <div id="combination-stats" style="font-size: 14px; color: #856404;"></div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-primary" id="btn-combine-files" disabled>合併檔案</button>
+                        <button class="btn btn-secondary" id="btn-clear-combination">清除選擇</button>
+                        <select id="duplicate-handling" style="padding: 5px; border-radius: 3px;">
+                            <option value="skip">跳過重複記錄 (保留檔案A的記錄)</option>
+                            <option value="include">包含所有記錄 (標記重複)</option>
+                            <option value="manual">手動檢查重複記錄</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="file-list" id="file-list">
                     <!-- Files will be dynamically added here -->
                 </div>
@@ -1829,6 +1866,319 @@
             console.log('🗑️ 已清除之前的匯出檔案');
         }
         
+        // ==================== FILE COMBINATION FUNCTIONS ====================
+        
+        let combineFileAData = null;
+        let combineFileBData = null;
+        let combineFileAName = '';
+        let combineFileBName = '';
+        
+        function handleCombineFileASelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const parsedData = parseCSVContent(text);
+                    
+                    if (parsedData.length === 0) {
+                        alert('檔案 A 格式不正確或為空');
+                        return;
+                    }
+                    
+                    combineFileAData = parsedData;
+                    combineFileAName = file.name;
+                    
+                    document.getElementById('file-a-info').textContent = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
+                    
+                    updateCombinationPreview();
+                    
+                } catch (error) {
+                    alert('讀取檔案 A 時發生錯誤，請確認檔案格式正確');
+                    console.error('解析檔案 A 錯誤:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function handleCombineFileBSelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const parsedData = parseCSVContent(text);
+                    
+                    if (parsedData.length === 0) {
+                        alert('檔案 B 格式不正確或為空');
+                        return;
+                    }
+                    
+                    combineFileBData = parsedData;
+                    combineFileBName = file.name;
+                    
+                    document.getElementById('file-b-info').textContent = `✓ ${file.name} (${parsedData.length} 筆記錄)`;
+                    
+                    updateCombinationPreview();
+                    
+                } catch (error) {
+                    alert('讀取檔案 B 時發生錯誤，請確認檔案格式正確');
+                    console.error('解析檔案 B 錯誤:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function updateCombinationPreview() {
+            const previewDiv = document.getElementById('combination-preview');
+            const statsDiv = document.getElementById('combination-stats');
+            const combineButton = document.getElementById('btn-combine-files');
+            
+            if (!combineFileAData || !combineFileBData) {
+                previewDiv.style.display = 'none';
+                combineButton.disabled = true;
+                return;
+            }
+            
+            // Check for duplicates
+            const fileAKeys = new Set();
+            combineFileAData.forEach(entry => {
+                fileAKeys.add(generateRecordKey(entry));
+            });
+            
+            let duplicateCount = 0;
+            let duplicateRecords = [];
+            combineFileBData.forEach(entry => {
+                const key = generateRecordKey(entry);
+                if (fileAKeys.has(key)) {
+                    duplicateCount++;
+                    duplicateRecords.push(entry);
+                }
+            });
+            
+            const totalRecords = combineFileAData.length + combineFileBData.length;
+            const uniqueRecords = totalRecords - duplicateCount;
+            
+            // Update stats display
+            let statsHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center;">
+                    <div>
+                        <strong>檔案 A</strong><br>
+                        ${combineFileAData.length} 筆記錄
+                    </div>
+                    <div>
+                        <strong>檔案 B</strong><br>
+                        ${combineFileBData.length} 筆記錄
+                    </div>
+                    <div>
+                        <strong>重複記錄</strong><br>
+                        <span style="color: ${duplicateCount > 0 ? '#dc3545' : '#28a745'}">
+                            ${duplicateCount} 筆
+                        </span>
+                    </div>
+                </div>
+                <hr style="margin: 10px 0;">
+                <div style="text-align: center;">
+                    <strong>合併後預計：${uniqueRecords} 筆記錄</strong>
+                    ${duplicateCount > 0 ? `<br><small style="color: #dc3545;">⚠️ 請選擇重複記錄的處理方式</small>` : ''}
+                </div>
+            `;
+            
+            statsDiv.innerHTML = statsHTML;
+            previewDiv.style.display = 'block';
+            combineButton.disabled = false;
+        }
+        
+        function performFileCombination() {
+            if (!combineFileAData || !combineFileBData) {
+                alert('請先選擇兩個檔案');
+                return;
+            }
+            
+            const duplicateHandling = document.getElementById('duplicate-handling').value;
+            
+            // Check for duplicates first
+            const fileAKeys = new Set();
+            const keyToRecordMap = new Map();
+            
+            combineFileAData.forEach(entry => {
+                const key = generateRecordKey(entry);
+                fileAKeys.add(key);
+                keyToRecordMap.set(key, { ...entry, _source: 'FileA' });
+            });
+            
+            let duplicateRecords = [];
+            let fileBUniqueRecords = [];
+            
+            combineFileBData.forEach(entry => {
+                const key = generateRecordKey(entry);
+                if (fileAKeys.has(key)) {
+                    duplicateRecords.push({
+                        key: key,
+                        fileA: keyToRecordMap.get(key),
+                        fileB: { ...entry, _source: 'FileB' }
+                    });
+                } else {
+                    fileBUniqueRecords.push({ ...entry, _source: 'FileB' });
+                }
+            });
+            
+            // Handle duplicates based on user selection
+            let finalData = [];
+            
+            if (duplicateHandling === 'manual' && duplicateRecords.length > 0) {
+                showDuplicateReviewModal(duplicateRecords, fileBUniqueRecords);
+                return;
+            }
+            
+            // Add all File A records
+            combineFileAData.forEach(entry => {
+                const cleanEntry = { ...entry };
+                delete cleanEntry._source;
+                finalData.push(cleanEntry);
+            });
+            
+            // Add File B records based on handling mode
+            if (duplicateHandling === 'skip') {
+                // Only add unique records from File B
+                fileBUniqueRecords.forEach(entry => {
+                    const cleanEntry = { ...entry };
+                    delete cleanEntry._source;
+                    finalData.push(cleanEntry);
+                });
+            } else if (duplicateHandling === 'include') {
+                // Add all File B records, mark duplicates
+                combineFileBData.forEach(entry => {
+                    const key = generateRecordKey(entry);
+                    const cleanEntry = { ...entry };
+                    delete cleanEntry._source;
+                    if (fileAKeys.has(key)) {
+                        cleanEntry.Comments = (cleanEntry.Comments || '') + ' [重複記錄-來自檔案B]';
+                    }
+                    finalData.push(cleanEntry);
+                });
+            }
+            
+            // Generate and download combined file
+            exportCombinedFile(finalData, combineFileAName, combineFileBName, duplicateHandling);
+        }
+        
+        function exportCombinedFile(data, fileAName, fileBName, handlingMode) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `TPM_Combined_${timestamp}.csv`;
+            
+            // Generate CSV with proper headers
+            const headers = [
+                'Name', 'Zone', 'Project', 'Product Module', 'Activity Type', 'Task',
+                'Regular Hours', 'OT Hours', 'TTL_Hours', 'Date', 'Start Date', 'End Date',
+                'Comments', 'PM', 'InternalOrOutsource'
+            ];
+            
+            let csvContent = headers.join(',') + '\n';
+            
+            data.forEach(entry => {
+                const row = headers.map(header => {
+                    let value = entry[header] || '';
+                    // Escape values containing commas or quotes
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        value = '"' + value.replace(/"/g, '""') + '"';
+                    }
+                    return value;
+                });
+                csvContent += row.join(',') + '\n';
+            });
+            
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success message
+            const handlingText = {
+                'skip': '跳過重複記錄',
+                'include': '包含所有記錄並標記重複',
+                'manual': '手動選擇'
+            };
+            
+            const message = `🎉 檔案合併成功！\n\n` +
+                `📁 合併檔案：${filename}\n` +
+                `📊 最終記錄數：${data.length} 筆\n` +
+                `📋 處理方式：${handlingText[handlingMode]}\n\n` +
+                `📄 來源檔案：\n` +
+                `  • 檔案 A：${fileAName}\n` +
+                `  • 檔案 B：${fileBName}`;
+            
+            alert(message);
+        }
+        
+        function showDuplicateReviewModal(duplicateRecords, uniqueRecords) {
+            // This would show a modal for manual duplicate review
+            // For now, we'll use a simple confirm dialog
+            const message = `發現 ${duplicateRecords.length} 筆重複記錄。\n\n` +
+                `您希望如何處理這些重複記錄？\n\n` +
+                `確定：保留檔案 A 的記錄，跳過檔案 B 的重複記錄\n` +
+                `取消：包含所有記錄並標記重複`;
+            
+            const useSkipMode = confirm(message);
+            
+            let finalData = [];
+            
+            // Add all File A records
+            combineFileAData.forEach(entry => {
+                finalData.push({ ...entry });
+            });
+            
+            if (useSkipMode) {
+                // Add only unique records from File B
+                uniqueRecords.forEach(entry => {
+                    const cleanEntry = { ...entry };
+                    delete cleanEntry._source;
+                    finalData.push(cleanEntry);
+                });
+            } else {
+                // Add all File B records with duplicate marking
+                combineFileBData.forEach(entry => {
+                    const key = generateRecordKey(entry);
+                    const cleanEntry = { ...entry };
+                    delete cleanEntry._source;
+                    
+                    const isDuplicate = duplicateRecords.some(dup => dup.key === key);
+                    if (isDuplicate) {
+                        cleanEntry.Comments = (cleanEntry.Comments || '') + ' [重複記錄-來自檔案B]';
+                    }
+                    finalData.push(cleanEntry);
+                });
+            }
+            
+            exportCombinedFile(finalData, combineFileAName, combineFileBName, 'manual');
+        }
+        
+        function clearCombinationSelection() {
+            combineFileAData = null;
+            combineFileBData = null;
+            combineFileAName = '';
+            combineFileBName = '';
+            
+            document.getElementById('file-a-info').textContent = '';
+            document.getElementById('file-b-info').textContent = '';
+            document.getElementById('combine-file-a').value = '';
+            document.getElementById('combine-file-b').value = '';
+            document.getElementById('combination-preview').style.display = 'none';
+            document.getElementById('btn-combine-files').disabled = true;
+            
+            console.log('🗑️ 已清除檔案合併選擇');
+        }
+        
         // ==================== INITIALIZATION ====================
         
         document.addEventListener('DOMContentLoaded', async function() {
@@ -1893,6 +2243,22 @@
             });
             document.getElementById('btn-clear-previous').addEventListener('click', clearPreviousFile);
             previousExportInput.addEventListener('change', handlePreviousFileSelection);
+            
+            // File combination events
+            const combineFileAInput = document.getElementById('combine-file-a');
+            const combineFileBInput = document.getElementById('combine-file-b');
+            document.getElementById('btn-select-file-a').addEventListener('click', () => {
+                combineFileAInput.value = ''; // Clear value to ensure change event fires
+                combineFileAInput.click();
+            });
+            document.getElementById('btn-select-file-b').addEventListener('click', () => {
+                combineFileBInput.value = ''; // Clear value to ensure change event fires
+                combineFileBInput.click();
+            });
+            document.getElementById('btn-combine-files').addEventListener('click', performFileCombination);
+            document.getElementById('btn-clear-combination').addEventListener('click', clearCombinationSelection);
+            combineFileAInput.addEventListener('change', handleCombineFileASelection);
+            combineFileBInput.addEventListener('change', handleCombineFileBSelection);
             
             console.log('✅ TPM 驗證儀表板初始化完成');
         });
