@@ -1150,7 +1150,7 @@ async function exportTimesheet(weekKey) {
     
     const csvContent = generateCSVContent(entries, shouldNormalize);
     const filename = 'timesheet_' + weekKey + '.csv';
-    downloadCSVFile(csvContent, filename);
+    downloadCsv(filename, csvContent);
     
     // 顯示匯出結果訊息
     if (totalRegularHours > 40) {
@@ -2390,7 +2390,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.3.1 (2025-07-02T00:00:00Z)');
+console.log('App.js initialized and running - Version 3.3.2 (2025-07-02T00:00:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
