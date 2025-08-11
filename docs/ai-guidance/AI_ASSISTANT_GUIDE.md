@@ -8,7 +8,7 @@ This document provides guidance for AI assistants (Claude Code, Gemini, etc.) wh
 ## Quick Reference
 
 ### Current Version
-- **Version**: 3.3.2 (2025-07-02)
+- **Version**: 3.3.3 (2025-01-11)
 - **Architecture**: Frontend-only, bundled JavaScript
 - **Data Storage**: localStorage
 - **Deployment**: GitHub Pages compatible
@@ -210,7 +210,7 @@ When user requests "進小版" or "進個小版":
 
 ### Current Version Pattern
 ```javascript
-console.log('App.js initialized and running - Version 3.3.2 (2025-07-02T00:00:00Z)');
+console.log('App.js initialized and running - Version 3.3.3 (2025-01-11T00:00:00Z)');
 ```
 
 ## Testing Checklist

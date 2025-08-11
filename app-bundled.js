@@ -2390,7 +2390,7 @@ window.validateRegularHours = validateRegularHours;
 
 // ==================== 初始化 ====================
 
-console.log('App.js initialized and running - Version 3.3.2 (2025-07-02T00:00:00Z)');
+console.log('App.js initialized and running - Version 3.3.3 (2025-01-11T00:00:00Z)');
 
 // 主要初始化
 document.addEventListener('DOMContentLoaded', function() {
