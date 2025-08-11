@@ -3,7 +3,7 @@
 一個基於網頁的工時管理應用程式，支援多週工時記錄、自動驗證、CSV匯出匯入等功能。  
 *A web-based timesheet management application with multi-week support, automatic validation, and CSV import/export capabilities.*
 
-![Version](https://img.shields.io/badge/version-3.3.2-blue.svg)
+![Version](https://img.shields.io/badge/version-3.3.3-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Web-orange.svg)
 
