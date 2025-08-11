@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TPM Validation Fix Test</title>
+</head>
+<body>
+    <h1>Testing Floating Point Validation Fix</h1>
+    <pre id="output"></pre>
+    
+    <script>
+        // Copy the isFloatEqual function from our fix
+        function isFloatEqual(a, b, epsilon = 0.0001) {
+            return Math.abs(a - b) <= epsilon;
+        }
+        
+        const output = document.getElementById('output');
+        let testResults = "Testing isFloatEqual function:\n\n";
+        
+        // Test cases that were previously failing
+        const tests = [
+            // Basic decimal test
+            { a: 0.59, b: 0.59, expected: true, description: "0.59 equals 0.59" },
+            { a: 0.59 + 0, b: 0.59, expected: true, description: "0.59 + 0 equals 0.59" },
+            
+            // Classic floating point issue
+            { a: 0.1 + 0.2, b: 0.3, expected: true, description: "0.1 + 0.2 equals 0.3 (with tolerance)" },
+            
+            // Weekly total scenarios  
+            { a: 39.9999, b: 40, expected: true, description: "39.9999 equals 40 (within tolerance)" },
+            { a: 40.0001, b: 40, expected: true, description: "40.0001 equals 40 (within tolerance)" },
+            
+            // Edge cases
+            { a: 0.0001, b: 0, expected: true, description: "0.0001 equals 0 (exactly at epsilon boundary)" },
+            { a: 0.00011, b: 0, expected: false, description: "0.00011 does not equal 0 (exceeds epsilon)" },
+            
+            // Total hours calculation tests
+            { a: parseFloat("0.59") + parseFloat("0"), b: parseFloat("0.59"), expected: true, description: "parseFloat sum equals parseFloat value" },
+            { a: 1.1 + 1.1, b: 2.2, expected: true, description: "1.1 + 1.1 equals 2.2" },
+            { a: 7.9999 + 0.0001, b: 8, expected: true, description: "7.9999 + 0.0001 equals 8" },
+        ];
+        
+        let passedCount = 0;
+        let totalCount = tests.length;
+        
+        tests.forEach((test, index) => {
+            const result = isFloatEqual(test.a, test.b);
+            const passed = result === test.expected;
+            
+            testResults += `Test ${index + 1}: ${test.description}\n`;
+            testResults += `  Input: ${test.a} vs ${test.b}\n`;
+            testResults += `  Expected: ${test.expected}, Got: ${result}\n`;
+            testResults += `  Status: ${passed ? 'PASS' : 'FAIL'}\n`;
+            testResults += `  Difference: ${Math.abs(test.a - test.b)}\n`;
+            testResults += "  ---\n\n";
+            
+            if (passed) passedCount++;
+        });
+        
+        testResults += `\nSUMMARY: ${passedCount}/${totalCount} tests passed\n`;
+        testResults += `Overall Result: ${passedCount === totalCount ? 'ALL TESTS PASSED ✓' : 'SOME TESTS FAILED ✗'}\n\n`;
+        
+        // Additional precision tests
+        testResults += "JavaScript Floating Point Demonstration:\n";
+        testResults += `0.1 + 0.2 = ${0.1 + 0.2}\n`;
+        testResults += `0.1 + 0.2 === 0.3: ${0.1 + 0.2 === 0.3}\n`;
+        testResults += `isFloatEqual(0.1 + 0.2, 0.3): ${isFloatEqual(0.1 + 0.2, 0.3)}\n`;
+        testResults += `\nThis demonstrates why tolerance-based comparison is necessary for floating point numbers.`;
+        
+        output.textContent = testResults;
+    </script>
+</body>
+</html>

@@ -611,6 +611,12 @@
         
         // ==================== VALIDATION RULES ====================
         
+        // Utility function for floating point comparison with tolerance
+        // Accepts up to 4 decimal digits precision (epsilon = 0.0001)
+        function isFloatEqual(a, b, epsilon = 0.0001) {
+            return Math.abs(a - b) <= epsilon;
+        }
+        
         // 1. Required fields validation
         function validateRequiredFields(entry, lineNumber) {
             const requiredFields = ['Task', 'Activity Type', 'Zone', 'Project', 'Product Module', 'Regular Hours', 'Date'];
@@ -882,8 +888,8 @@
                 totalRegularHours += regularHours;
             });
             
-            // Check if total is exactly 40 hours
-            if (totalRegularHours !== 40) {
+            // Check if total is 40 hours with floating point tolerance
+            if (!isFloatEqual(totalRegularHours, 40)) {
                 errors.push(`全週正常工時加總 ${totalRegularHours} 小時，不等於要求的 40 小時`);
             }
             
@@ -906,8 +912,8 @@
             // Calculate expected total hours
             const expectedTotal = regularHours + otHours;
             
-            // Direct comparison without tolerance
-            if (ttlHours !== expectedTotal) {
+            // Tolerance-based comparison to handle floating point precision
+            if (!isFloatEqual(ttlHours, expectedTotal)) {
                 errors.push(`第 ${lineNumber} 行：總工時 ${ttlHours} 不等於正常工時 ${regularHours} + 加班工時 ${otHours} = ${expectedTotal}`);
             }
             
