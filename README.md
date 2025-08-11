@@ -3,7 +3,7 @@
 一個基於網頁的工時管理應用程式，支援多週工時記錄、自動驗證、CSV匯出匯入等功能。  
 *A web-based timesheet management application with multi-week support, automatic validation, and CSV import/export capabilities.*
 
-![Version](https://img.shields.io/badge/version-3.3.3-blue.svg)
+![Version](https://img.shields.io/badge/version-3.3.4-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Web-orange.svg)
 
@@ -131,7 +131,15 @@ timesheet/
 
 ## 📈 版本歷程 | Version History
 
-### v3.3.3 (2025-08-11) - Current
+### v3.3.4 (2025-08-11) - Current
+
+**文件更新：**
+- 📚 修正 v3.3.3 技術改進說明，準確反映浮點數容錯實作
+- 📚 新增 `isFloatEqual` 函數和精度處理機制的詳細說明
+- 📚 更新專案結構，包含新增的測試檔案
+- 📚 完善浮點數精度問題修復的文件記錄
+
+### v3.3.3 (2025-08-11)
 
 **新增功能：**
 - ✅ TPM驗證器新增第11個驗證規則：總工時加總檢查
@@ -234,4 +242,4 @@ in the Software without restriction...
 
 ---
 
-*最後更新: 2025-08-11 | Version 3.3.3*
+*最後更新: 2025-08-11 | Version 3.3.4*
