@@ -895,6 +895,30 @@
             };
         }
         
+        // 11. Total hours calculation validation (Regular Hours + OT Hours = TTL_Hours)
+        function validateTotalHoursCalculation(entry, lineNumber) {
+            const errors = [];
+            
+            const regularHours = parseFloat(entry['Regular Hours']) || 0;
+            const otHours = parseFloat(entry['OT Hours']) || 0;
+            const ttlHours = parseFloat(entry['TTL_Hours']) || 0;
+            
+            // Calculate expected total hours
+            const expectedTotal = regularHours + otHours;
+            
+            // Direct comparison without tolerance
+            if (ttlHours !== expectedTotal) {
+                errors.push(`第 ${lineNumber} 行：總工時 ${ttlHours} 不等於正常工時 ${regularHours} + 加班工時 ${otHours} = ${expectedTotal}`);
+            }
+            
+            return {
+                ruleName: '總工時加總檢查',
+                passed: errors.length === 0,
+                errors: errors,
+                description: '檢查總工時是否等於正常工時加上加班工時'
+            };
+        }
+        
         // Master validation function
         async function validateCSVFile(file) {
             try {
@@ -936,7 +960,8 @@
                         validateProjectPMMapping(entry, lineNumber),
                         validateAdminTrainingActivity(entry, lineNumber),
                         validateActivityType(entry, lineNumber),
-                        validateNumericFields(entry, lineNumber)
+                        validateNumericFields(entry, lineNumber),
+                        validateTotalHoursCalculation(entry, lineNumber)
                     ];
                     
                     rules.forEach(rule => {
