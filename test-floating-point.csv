@@ -1,0 +1,7 @@
+Name,Zone,Project,Product Module,Activity Type,Task,Regular Hours,OT Hours,TTL_Hours,Date,Start Date,End Date,Comments,PM,InternalOrOutsource
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Test floating point precision,0.59,0,0.59,2025/01/13,2025/01/13,2025/01/13,,TestPM,Internal
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Another decimal test,1.1,1.1,2.2,2025/01/14,2025/01/14,2025/01/14,,TestPM,Internal
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Classic float issue,0.1,0.2,0.3,2025/01/15,2025/01/15,2025/01/15,,TestPM,Internal
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Large decimal,7.9999,0.0001,8,2025/01/16,2025/01/16,2025/01/16,,TestPM,Internal
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Edge case precision,0.0001,0,0.0001,2025/01/17,2025/01/17,2025/01/17,,TestPM,Internal
+TestUser,Admin,Admin,Non Product Non Product,Admin / Training,Remainder to reach 40,29.8499,0,29.8499,2025/01/18,2025/01/18,2025/01/18,,TestPM,Internal
